@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useState, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap } from '@react-google-maps/api';
+import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 
 const containerStyle = {
   width: '100%',
@@ -20,10 +21,7 @@ const MapComponent: React.FC = () => {
     setIsClient(true);
   }, []);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
-  });
+  const { isLoaded } = useGoogleMaps();
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
