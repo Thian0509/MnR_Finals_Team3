@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.7",
     "@prisma/client": "^6.13.0",
     "@prisma/extension-accelerate": "^2.0.2",
     "better-auth": "^1.3.4",
