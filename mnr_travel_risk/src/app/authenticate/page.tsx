@@ -28,7 +28,9 @@ export default function AuthForm() {
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" required />
           </div>
-          <Button type="submit" className="w-full">
+          <Button type="submit" onClick={() =>
+            testGeo()
+            } className="w-full">
             Login
           </Button>
         </div>
@@ -60,6 +62,29 @@ export default function AuthForm() {
       </CardContent>
     </>
   );
+
+const testGeo = () => {
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      // Success callback
+      (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        console.log("Latitude:", latitude);
+        console.log("Longitude:", longitude);
+
+        // You can add logic here to send the data to a server
+      },
+      // Error callback
+      (error) => {
+        console.error("Error getting location:", error.message);
+      }
+    );
+  } else {
+    console.log("Geolocation is not supported by this browser.");
+  }
+};
 
   return (
     <div className="flex min-h-screen items-center justify-center">
