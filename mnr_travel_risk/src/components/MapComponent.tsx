@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 
 const containerStyle = {
@@ -14,6 +14,12 @@ const center = {
 };
 
 const MapComponent: React.FC = () => {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
@@ -22,14 +28,33 @@ const MapComponent: React.FC = () => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
   const onLoad = useCallback(function callback(map: google.maps.Map) {
-    const bounds = new window.google.maps.LatLngBounds(center);
-    map.fitBounds(bounds);
-    setMap(map);
+    if (typeof window !== 'undefined' && window.google) {
+      const bounds = new window.google.maps.LatLngBounds(center);
+      map.fitBounds(bounds);
+      setMap(map);
+    }
   }, []);
 
   const onUnmount = useCallback(function callback(map: google.maps.Map) {
     setMap(null);
   }, []);
+
+  // Don't render anything on server side
+  if (!isClient) {
+    return (
+      <div style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f5f5f5',
+        color: '#666'
+      }}>
+        Loading Map...
+      </div>
+    );
+  }
 
   return isLoaded ? (
     <GoogleMap
@@ -41,7 +66,17 @@ const MapComponent: React.FC = () => {
     >
     </GoogleMap>
   ) : (
-    <div>Loading Map...</div>
+    <div style={{
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#f5f5f5',
+      color: '#666'
+    }}>
+      Loading Map...
+    </div>
   );
 };
 
