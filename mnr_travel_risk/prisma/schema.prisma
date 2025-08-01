@@ -25,6 +25,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   profile       UserProfile?
+  trips         Trip[]
 
   @@unique([email])
   @@map("user")
@@ -80,10 +81,62 @@ model UserProfile {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   carType   String?
-  latitude  Float?
-  longitude Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("user_profile")
+}
+
+model Trip {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  startCoordinates Json
+  endCoordinates Json
+
+  travelTime  Int
+  travelDistance Int
+  travelMode String
+  travelType String
+
+  routineAlerts RoutineAlert[]
+
+  @@map("trip")
+}
+
+model Risk {
+  id        String   @id
+  coordinates Json
+  riskLevel Int
+  riskDescription String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("risk")
+}
+
+model RiskReport {
+  id        String   @id
+  coordinates Json
+  riskLevel Int
+  riskDescription String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("risk_report")
+}
+
+model RoutineAlert {
+  id        String   @id
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  arrivalTime DateTime
+  cronString String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("routine_alert")
 }
