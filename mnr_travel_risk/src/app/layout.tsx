@@ -25,11 +25,11 @@ export default function RootLayout({
   const router = useRouter();
   const { data: session, isPending } = useSession();
 
-  useEffect(() => {
-    if (!isPending && !session?.user) {
-      router.push("/login");
-    }
-  }, [isPending, session, router]);
+  // useEffect(() => {
+  //   if (!isPending && !session?.user) {
+  //     router.push("/login");
+  //   }
+  // }, [isPending, session, router]);
 
   return (
     <html lang="en">
