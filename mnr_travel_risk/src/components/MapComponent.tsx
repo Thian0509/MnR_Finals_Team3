@@ -5,7 +5,7 @@ import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 
 const containerStyle = {
   width: '100%',
-  height: '100%', // Changed from '100vh' to '100%'
+  height: '100%',
 };
 
 const center = {
@@ -39,7 +39,6 @@ const MapComponent: React.FC = () => {
       onLoad={onLoad}
       onUnmount={onUnmount}
     >
-      {/* You can add child components here */}
     </GoogleMap>
   ) : (
     <div>Loading Map...</div>
