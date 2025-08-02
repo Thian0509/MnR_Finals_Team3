@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useState, useEffect } from 'react';
-import { GoogleMap } from '@react-google-maps/api';
+import { GoogleMap, LoadScript } from '@react-google-maps/api';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 import mapStyles from '@/lib/mapStyles.json';
 import { createRoot } from 'react-dom/client';
@@ -58,6 +58,8 @@ const generateRandomPositions = (
   }
   return positions;
 };
+
+const libraries = ['places'];
 
 const MapComponent: React.FC = () => {
   const [isClient, setIsClient] = useState(false);
@@ -156,7 +158,7 @@ const MapComponent: React.FC = () => {
     );
   }
 
-  return isLoaded ? (
+  return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <button
         onClick={handleRefresh}
@@ -183,10 +185,6 @@ const MapComponent: React.FC = () => {
         onUnmount={onUnmount}
         options={{ mapId: 'DEMO_MAP_ID' }}
       />
-    </div>
-  ) : (
-    <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
-      Loading Map...
     </div>
   );
 };

@@ -39,20 +39,22 @@ const LandingPage: React.FC = () => {
     }
 
     try {
-      // Here you would typically make an API call to plan the trip
-      console.log("Planning trip:", {
-        from: fromLocation,
-        to: toLocation,
-        date: travelDate,
-        time: travelTime
+      // Send trip data to the backend API to schedule the cron job
+      const response = await fetch("/api/schedule-trip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: fromLocation,
+          to: toLocation,
+          date: travelDate,
+          time: travelTime
+        })
       });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      if (!response.ok) throw new Error("Failed to schedule trip");
+
       // Handle successful trip planning
       console.log("Trip planned successfully!");
-      
     } catch (err) {
       setError("Failed to plan trip. Please try again.");
     } finally {
