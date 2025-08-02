@@ -45,7 +45,7 @@ function App() {
   // Schedule checker for routine notifications
   useEffect(() => {
     const checkRoutines = () => {
-      const routines = 
+      const routines: any[] = []
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
