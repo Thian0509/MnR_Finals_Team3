@@ -1,9 +1,39 @@
-import React from 'react';
+// src/app/landing/page.tsx
+
+"use client"; // This component needs to be a client component
+
+import React, { useEffect, useState } from 'react';
 import MapComponent from '@/components/MapComponent';
 import Head from 'next/head';
 import { Button } from "@/components/ui/button"
 
 const LandingPage: React.FC = () => {
+  const [userLocation, setUserLocation] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // This code runs only on the client side after component mounts
+    if (typeof window !== 'undefined') {
+      const storedLat = localStorage.getItem('userLat');
+      const storedLng = localStorage.getItem('userLng');
+
+      if (storedLat && storedLng) {
+        setUserLocation({
+          lat: parseFloat(storedLat),
+          lng: parseFloat(storedLng),
+        });
+      }
+    }
+    setLoading(false);
+  }, []); // The empty array ensures this effect runs only once
+
+  const defaultCenter = {
+    lat: -34.397,
+    lng: 150.644,
+  };
+
+  const centerToUse = userLocation || defaultCenter;
+
   return (
     <>
       <Head>
@@ -30,7 +60,7 @@ const LandingPage: React.FC = () => {
             margin: "0 0 20px 0",
           }}
         >
-          Safety Budy
+          Safety Buddy
         </h1>
 
         <div
@@ -43,7 +73,11 @@ const LandingPage: React.FC = () => {
             overflow: "hidden",
           }}
         >
-          <MapComponent />
+          {loading ? (
+            <div>Loading Map...</div>
+          ) : (
+            <MapComponent center={centerToUse} />
+          )}
         </div>
 
         <div style={{

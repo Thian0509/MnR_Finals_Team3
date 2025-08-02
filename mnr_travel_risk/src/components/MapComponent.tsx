@@ -1,3 +1,5 @@
+// src/components/MapComponent.tsx
+
 'use client';
 
 import React, { useCallback, useState } from 'react';
@@ -8,12 +10,14 @@ const containerStyle = {
   height: '100%',
 };
 
-const center = {
-  lat: -34.397,
-  lng: 150.644
-};
+interface MapComponentProps {
+  center: {
+    lat: number;
+    lng: number;
+  };
+}
 
-const MapComponent: React.FC = () => {
+const MapComponent: React.FC<MapComponentProps> = ({ center }) => {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
@@ -22,8 +26,9 @@ const MapComponent: React.FC = () => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
   const onLoad = useCallback(function callback(map: google.maps.Map) {
-    const bounds = new window.google.maps.LatLngBounds(center);
-    map.fitBounds(bounds);
+    // You can remove this part if you don't need to fit bounds
+    // const bounds = new window.google.maps.LatLngBounds(center);
+    // map.fitBounds(bounds);
     setMap(map);
   }, []);
 
@@ -34,8 +39,8 @@ const MapComponent: React.FC = () => {
   return isLoaded ? (
     <GoogleMap
       mapContainerStyle={containerStyle}
-      center={center}
-      zoom={10}
+      center={center} // Use the center prop here
+      zoom={16} // You can adjust this value
       onLoad={onLoad}
       onUnmount={onUnmount}
     >
