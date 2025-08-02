@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
     cronExpression,
     () => {
       console.log(`[CRON FIRED] Trip from ${from} to ${to} at ${date} ${time}`);
-      // You can also write to a file or send an email here for more visibility
     }
   );
   job.start();
