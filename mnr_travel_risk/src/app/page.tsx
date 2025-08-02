@@ -154,7 +154,7 @@ function App() {
     );
   }
 
-  if (!isLoaded) {
+  if (!isLoaded || isLoading) {
     return <Loading />;
   }
 
@@ -208,6 +208,10 @@ function App() {
         </DialogContent>
       </Dialog>
 
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-20 bg-black/10 backdrop-blur-sm p-2 rounded-md">
+        <h1 className="text-xl font-bold text-white">SafetyBuddy</h1>
+      </div>
+
       <div className="w-screen h-screen absolute top-0 left-0 z-0">
         <MapComponent
           isLoaded={isLoaded}
@@ -242,11 +246,7 @@ function App() {
                     <Sun className="h-10 w-10 text-yellow-500" />
                   </div>
                   <div className="flex items-center justify-end flex-col">
-                    <h1 className="text-3xl font-bold text-green-500">25</h1>
-                    <p className="text-xs">minutes</p>
-                  </div>
-                  <div className="flex items-center justify-end flex-col">
-                    <h1 className="text-3xl font-bold text-red-500">{averageRisk.toFixed(1)}%</h1>
+                    <h1 className="text-3xl font-bold text-red-500">{averageRisk ? averageRisk.toFixed(1) : 0}%</h1>
                     <p className="text-xs">Travel Risk</p>
                   </div>
                 </div>

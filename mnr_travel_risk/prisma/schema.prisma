@@ -15,7 +15,7 @@ datasource db {
 }
 
 model User {
-  id            String       @id
+  id            String    @id
   name          String
   email         String
   emailVerified Boolean
@@ -90,21 +90,20 @@ model UserProfile {
 }
 
 model Trip {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Simplified fields
   from          String
   to            String
   departureTime DateTime
   notified      Boolean  @default(false) // To track if a notification has been sent
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  @@index([notified, departureTime]) // Index for efficient cron job queries
   @@map("trip")
+  @@index([notified, departureTime]) // Index for efficient cron job queries
 }
 
 model Risk {

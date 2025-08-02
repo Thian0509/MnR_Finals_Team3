@@ -7,18 +7,9 @@ import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 import useLocation from '@/hooks/useLocation';
 import { LatLng, RiskMarker } from '@/types/coord';
 import { useRisks } from '@/hooks/useRisks';
-type Report = {
-  coordinates: {
-    lat: number, 
-    lng: number 
-  }
-    
-createdAt: Date,
-id: string
-riskDescription: string | null
-riskLevel: number
-updatedAt: Date
-}
+import { useReports } from '@/hooks/useReports';
+import { capitalize, removeUnderscores } from '@/lib/underscore';
+
 const containerStyle = {
   width: '100%',
   height: '100%',
@@ -35,9 +26,9 @@ const MapComponent: React.FC<{
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
-  const [closeReports, setCloseReports] = useState<(Report & { distance: number })[]>([]);
   const { location, isLoading } = useLocation();
   const { risks, loading } = useRisks();
+  const { allReports, loadReports } = useReports();
 
   useEffect(() => {
     if (location && !isLoading) {
@@ -68,42 +59,7 @@ const MapComponent: React.FC<{
       setMarkers(results);
     }, [risks]);
 
-  const loadReports = useCallback(
-    async (ctr: LatLng) => {
-      try {
-        const resp = await fetch('/api/report')
-        if (!resp.ok) {
-          console.error('Failed to fetch reports:', resp.status);
-          return;
-        }
-        const data = await resp.json();
-        const reports: Report[] = data.reports || [];
-        console.log('Loaded reports:', reports.length);
-        
-        const distReports = reports.map((report) => {
-          const toRad = (value: number) => (value * Math.PI) / 180;
-          const R = 6371; // Earth radius in km
-          const dLat = toRad(report.coordinates.lat - ctr.lat);
-          const dLng = toRad(report.coordinates.lng - ctr.lng);
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(ctr.lat)) *
-          Math.cos(toRad(report.coordinates.lat)) *
-          Math.sin(dLng / 2) *
-          Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const distance = R * c;
-          return {distance, ...report};
-        });
-        const closeReports = distReports.filter((value) => value.distance < 1000000);
-        console.log('Close reports:', closeReports.length);
-        setCloseReports(closeReports);
-      } catch (error) {
-        console.error('Error loading reports:', error);
-      }
-    },
-    []
-  )
+
 
   useEffect(() => {
     setIsClient(true);
@@ -118,26 +74,15 @@ const MapComponent: React.FC<{
     });
     setMap(mapInstance);
     loadMarkers(center);
-    loadReports(center);
+    loadReports();
     const trafficLayer = new google.maps.TrafficLayer();
     trafficLayer.setMap(mapInstance);
     trafficLayerRef.current = trafficLayer;
-  }, [loadMarkers, loadReports, center]);
+  }, [loadMarkers, loadReports, center, setMap]);
 
   const onUnmount = useCallback(() => {
     setMap(null);
   }, []);
-
-  // const handleRefresh = () => {
-  //   if (map) {
-  //     const newCenter = map.getCenter()?.toJSON();
-  //     if (newCenter) {
-  //       setCenter({ ...newCenter, weight: 0 });
-  //       loadMarkers({ ...newCenter, weight: 0 });
-  //       loadReports({ ...newCenter, weight: 0 });
-  //     }
-  //   }
-  // };
 
   useEffect(() => {
     if (!map || !window.google?.maps?.visualization || markers.length === 0) return;
@@ -174,48 +119,30 @@ const MapComponent: React.FC<{
   }
 
   return isLoaded ? (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      
-
+    <div className="relative w-full h-full select-none">
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
         zoom={10}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{ mapId: 'DEMO_MAP_ID', styles: mapStyles }}
+        options={{ styles: mapStyles }} // mapId: 'DEMO_MAP_ID', 
       >
         {location && (
           <Marker 
             position={{ lat: location.coords.latitude, lng: location.coords.longitude }} 
-            icon={{
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="8" fill="#3b82f6" stroke="white" stroke-width="3"/>
-                  <circle cx="12" cy="12" r="3" fill="white"/>
-                </svg>
-              `),
-              scaledSize: new google.maps.Size(24, 24),
-            }}
             title="Your Location"
           />
         )}
-        {closeReports.map((report) => (
-          <Marker
-            key={report.id}
-            position={{ lat: report.coordinates.lat, lng: report.coordinates.lng }}
-            title={`Risk Level: ${report.riskLevel} - ${report.riskDescription || 'No description'}`}
-            icon={{
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="16" cy="16" r="12" fill="${report.riskLevel > 7 ? '#ef4444' : report.riskLevel > 4 ? '#f59e0b' : '#10b981'}" stroke="white" stroke-width="3"/>
-                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-weight="bold">${report.riskLevel}</text>
-                </svg>
-              `),
-              scaledSize: new google.maps.Size(32, 32),
-            }}
-          />
-        ))}
+        {allReports.map((report) => {
+          return (
+            <Marker
+              key={report.id}
+              position={{ lat: (report.coordinates as { lat: number }).lat, lng: (report.coordinates as { lng: number }).lng }}
+              title={`${capitalize(removeUnderscores(report.riskType))} - ${report.riskDescription || 'No description'}`}
+            />
+          );
+        })}
       </GoogleMap>
     </div>
   ) : (
