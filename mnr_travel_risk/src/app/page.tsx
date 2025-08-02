@@ -1,10 +1,11 @@
 "use client"
 
-import React, { useState } from "react";
+
+import React, { useEffect, useRef, useState } from "react";
 import MapComponent from "@/components/MapComponent";
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import PlaceAutocomplete from "@/components/PlaceAutocomplete"
+} from "@/components/ui/dialog";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
+import { toast, Toaster } from "sonner"; // Import Toaster from sonner
 
 const LandingPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,17 +23,26 @@ const LandingPage: React.FC = () => {
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  // Change the ref to store the createdAt timestamp instead of the ID
+  const lastAlertCreatedAt = useRef<string | null>(null);
+
+  // Fetch user ID from session API on mount
+  useEffect(() => {
+    fetch("/api/auth/get-session")
+      .then(res => res.json())
+      .then(data => setUserId(data.user?.id || null));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-    
+
     const formData = new FormData(e.currentTarget);
     const travelDate = formData.get("date") as string;
     const travelTime = formData.get("time") as string;
 
-    // Validate form data
     if (!fromLocation || !toLocation || !travelDate || !travelTime) {
       setError("Please fill in all required fields.");
       setIsLoading(false);
@@ -39,7 +50,9 @@ const LandingPage: React.FC = () => {
     }
 
     try {
-      // Send trip data to the backend API to schedule the cron job
+      // This is for the toast for planning the trip
+      toast("Trip planned successfully! An alert will be created at the departure time.");
+
       const response = await fetch("/api/schedule-trip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -47,20 +60,64 @@ const LandingPage: React.FC = () => {
           from: fromLocation,
           to: toLocation,
           date: travelDate,
-          time: travelTime
-        })
+          time: travelTime,
+          userId,
+        }),
       });
 
-      if (!response.ok) throw new Error("Failed to schedule trip");
-
-      // Handle successful trip planning
-      console.log("Trip planned successfully!");
+      if (!response.ok) {
+        throw new Error("Failed to schedule trip");
+      }
+      
+      // Close dialog only after successful submission
+      setIsDialogOpen(false);
     } catch (err) {
       setError("Failed to plan trip. Please try again.");
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   }
+
+  // Poll for alerts and show toast when a new alert appears
+  useEffect(() => {
+    // We only poll if we have a userId
+    if (!userId) return;
+
+    const pollForAlerts = async () => {
+      try {
+        const lastCreatedAt = lastAlertCreatedAt.current;
+        // Now polling the API for alerts, which are now created directly by the cron job
+        const res = await fetch(`/api/alert?userId=${userId}${lastCreatedAt ? `&lastCreatedAt=${lastCreatedAt}` : ""}`);
+        const alerts = await res.json();
+        
+        // Show a toast for each new alert
+        if (alerts.length > 0) {
+          alerts.forEach((alert: { id: string; message: string; createdAt: string; }) => {
+            // Display the message from the alert record
+            toast(alert.message);
+          });
+
+          // Update the lastAlertCreatedAt to the createdAt of the most recent alert
+          // The API returns alerts sorted by createdAt ASC, so the last one is the latest.
+          const latestAlertCreatedAt = alerts[alerts.length - 1].createdAt;
+          lastAlertCreatedAt.current = latestAlertCreatedAt;
+        }
+      } catch (err) {
+        console.error("Failed to poll for alerts:", err);
+      }
+    };
+
+    // Set up the polling interval
+    const interval = setInterval(pollForAlerts, 10000); // poll every 10 seconds
+
+    // Call the function immediately on mount to check for any alerts
+    // that might have been created before the component mounted.
+    pollForAlerts();
+
+    // Clean up the interval when the component unmounts or userId changes
+    return () => clearInterval(interval);
+  }, [userId]);
 
   return (
     <div className="flex flex-col items-center justify-end h-screen p-5 box-border bg-gray-50 overflow-hidden font-sans">
@@ -133,6 +190,8 @@ const LandingPage: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+      {/* Add the Toaster component here */}
+      <Toaster />
 
       <div className="w-screen h-screen absolute top-0 left-0 z-0">
         <MapComponent />

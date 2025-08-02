@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// GET /api/alert - Get all alerts for a user
+// GET /api/alert - Get all new alerts for a user since the last alert's creation time
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    // Change parameter name to be more descriptive of its purpose
+    const lastCreatedAt = searchParams.get('lastCreatedAt'); 
 
     if (!userId) {
       return NextResponse.json(
@@ -14,28 +16,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Prisma query for new alerts
     const alerts = await prisma.routineAlert.findMany({
       where: {
         trip: {
-          userId: userId
-        }
+          userId: userId,
+        },
+        // Now we filter by the `createdAt` timestamp, which is a chronologically increasing value
+        ...(lastCreatedAt && { createdAt: { gt: new Date(lastCreatedAt) } }),
       },
-      include: {
-        trip: {
-          select: {
-            id: true,
-            startCoordinates: true,
-            endCoordinates: true,
-            travelTime: true,
-            travelDistance: true,
-            travelMode: true,
-            travelType: true
-          }
-        }
+      // Explicitly select all required fields, including message and createdAt
+      select: {
+          id: true,
+          message: true,
+          createdAt: true,
+          trip: {
+            select: {
+              id: true,
+              startCoordinates: true,
+              endCoordinates: true,
+              travelTime: true,
+              travelDistance: true,
+              travelMode: true,
+              travelType: true,
+            },
+          },
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        // Order by creation time ascending to process new alerts chronologically
+        createdAt: 'asc',
+      },
     });
 
     return NextResponse.json(alerts);
@@ -52,18 +62,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tripId, arrivalTime, cronString } = body;
+    const { tripId, arrivalTime, cronString, message } = body;
 
-    if (!tripId || !arrivalTime || !cronString) {
+    if (!tripId || !arrivalTime || !cronString || !message) {
       return NextResponse.json(
-        { error: 'tripId, arrivalTime, and cronString are required' },
+        { error: 'tripId, arrivalTime, cronString, and message are required' },
         { status: 400 }
       );
     }
 
     // Verify the trip exists
     const trip = await prisma.trip.findUnique({
-      where: { id: tripId }
+      where: { id: tripId },
     });
 
     if (!trip) {
@@ -78,7 +88,8 @@ export async function POST(request: NextRequest) {
         id: crypto.randomUUID(),
         tripId,
         arrivalTime: new Date(arrivalTime),
-        cronString
+        cronString,
+        message, // Save the message
       },
       include: {
         trip: {
@@ -89,10 +100,10 @@ export async function POST(request: NextRequest) {
             travelTime: true,
             travelDistance: true,
             travelMode: true,
-            travelType: true
-          }
-        }
-      }
+            travelType: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json(alert, { status: 201 });
