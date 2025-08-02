@@ -1,29 +1,36 @@
 "use client"
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import MapComponent from "@/components/MapComponent";
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import TripPlanningForm from "@/components/TripPlanningForm";
+import { useGoogleMaps } from "@/hooks/useGoogleMaps";
+import useLocation from "@/hooks/useLocation";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import Loading from "@/components/Loading";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete"
 import { WeatherReportForm } from "@/components/report-form"
 import { RecentReportsTable } from "@/components/recent-reports-table"
 
-const LandingPage: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fromLocation, setFromLocation] = useState("");
-  const [toLocation, setToLocation] = useState("");
+function App() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [directionsRendered, setDirectionsRendered] = useState(false);
+  const { isLoaded, loadError, map, setMap } = useGoogleMaps();
+  const { location, error, isLoading, requestLocation, permissionStatus } = useLocation();
 
+  const handleDirectionsRendered = () => {
+    setDirectionsRendered(true);
+    setTimeout(() => setDirectionsRendered(false), 100);
+  };
+    
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -32,40 +39,98 @@ const LandingPage: React.FC = () => {
     const formData = new FormData(e.currentTarget);
     const travelDate = formData.get("date") as string;
     const travelTime = formData.get("time") as string;
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Validate form data
-    if (!fromLocation || !toLocation || !travelDate || !travelTime) {
-      setError("Please fill in all required fields.");
-      setIsLoading(false);
-      return;
-    }
+    // Handle successful trip planning
+    console.log("Trip planned successfully!");
 
-    try {
-      // Here you would typically make an API call to plan the trip
-      console.log("Planning trip:", {
-        from: fromLocation,
-        to: toLocation,
-        date: travelDate,
-        time: travelTime
-      });
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Handle successful trip planning
-      console.log("Trip planned successfully!");
-
-    } catch (err) {
-      setError("Failed to plan trip. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+  } catch (err) {
+    setError("Failed to plan trip. Please try again.");
+  } finally {
+    setIsLoading(false);
   }
+}
+
+  if (loadError) {
+    return (
+      <div className="text-red-500 text-center justify-center items-center h-screen">
+        <p>Error loading Google Maps. Please try again later.</p>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return <Loading />;
+  }
+
+  if (location === null && permissionStatus === 'prompt') {
+    return (
+      <Dialog open={true} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Location Access Required</DialogTitle>
+            <DialogDescription>
+              We need your location to provide accurate travel risk information and directions.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              onClick={requestLocation}
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? "Getting Location..." : "Allow Location Access"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-end h-screen p-5 box-border bg-gray-50 overflow-hidden font-sans">
+      <TripPlanningForm 
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        map={map}
+        setMap={setMap}
+        onDirectionsRendered={handleDirectionsRendered}
+      />
+
+      <Dialog open={error !== null} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Location Access Error</DialogTitle>
+            <DialogDescription>
+              {error === "User denied geolocation" 
+                ? "Location access was denied. Please enable location access in your browser settings."
+                : "Error getting location. Please try again later."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              onClick={requestLocation}
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? "Getting Location..." : "Try Again"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
   return (
     <div className="relative h-screen bg-gray-50 overflow-hidden font-sans">
       <div className="w-screen h-screen absolute top-0 left-0 z-0">
-        <MapComponent />
+        <MapComponent
+          isLoaded={isLoaded}
+          map={map}
+          setMap={setMap}
+          directionsRendered={directionsRendered}
+        />
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 z-10 p-5">
@@ -150,4 +215,4 @@ const LandingPage: React.FC = () => {
   );
 };
 
-export default LandingPage;
+export default App;
