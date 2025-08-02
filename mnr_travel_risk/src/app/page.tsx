@@ -111,6 +111,8 @@ function App() {
     if (!map) return;
     if (!google.maps.visualization.HeatmapLayer) return;
 
+    console.log(risks);
+
     const heatmapData = risks.map(({ position, risk }) => ({
       location: new google.maps.LatLng(position.lat, position.lng),
       weight: risk

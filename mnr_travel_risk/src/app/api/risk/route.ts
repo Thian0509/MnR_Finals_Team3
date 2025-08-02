@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
     // take coordinates and risk level from both risks and risk reports
     const risks = await prisma.risk.findMany();
 
+    console.log(risks);
+
     return NextResponse.json(risks, { status: 200 });
   } catch (error) {
     console.error('Error fetching risks:', error);
