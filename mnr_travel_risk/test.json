@@ -1,0 +1,20 @@
+// {
+//   origin: LatLng | String | google.maps.Place,
+//   destination: LatLng | String | google.maps.Place,
+//   travelMode: TravelMode,
+//   transitOptions: TransitOptions,
+//   drivingOptions: DrivingOptions,
+//   unitSystem: UnitSystem,
+//   waypoints[]: DirectionsWaypoint,
+//   optimizeWaypoints: Boolean,
+//   provideRouteAlternatives: Boolean,
+//   avoidFerries: Boolean,
+//   avoidHighways: Boolean,
+//   avoidTolls: Boolean,
+//   region: String
+// }
+
+
+// RGB 255 0 0 - RED
+// RGB 0 255 0 - GREEN
+

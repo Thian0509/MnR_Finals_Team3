@@ -3,6 +3,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { GoogleMap } from '@react-google-maps/api';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
+import mapStyles from '@/lib/mapStyles.json';
 
 const containerStyle = {
   width: '100%',
@@ -30,6 +31,14 @@ const MapComponent: React.FC = () => {
       const bounds = new window.google.maps.LatLngBounds(center);
       map.fitBounds(bounds);
       setMap(map);
+      // turn off all the controls
+      map.setOptions({
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControl: false,
+        styles: mapStyles,
+      });
     }
   }, []);
 
@@ -40,15 +49,7 @@ const MapComponent: React.FC = () => {
   // Don't render anything on server side
   if (!isClient) {
     return (
-      <div style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f5f5f5',
-        color: '#666'
-      }}>
+      <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
         Loading Map...
       </div>
     );
@@ -64,15 +65,7 @@ const MapComponent: React.FC = () => {
     >
     </GoogleMap>
   ) : (
-    <div style={{
-      width: '100%',
-      height: '100%',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: '#f5f5f5',
-      color: '#666'
-    }}>
+    <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
       Loading Map...
     </div>
   );

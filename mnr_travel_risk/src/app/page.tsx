@@ -61,18 +61,10 @@ const LandingPage: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col items-center h-screen p-5 box-border bg-gray-50 overflow-hidden font-sans">
-      <h1 className="text-4xl font-bold text-gray-800 mb-5">
-        Safety Buddy
-      </h1>
-
-      <div className="w-full flex-1 bg-white rounded-lg shadow-lg overflow-hidden mb-5">
-        <MapComponent />
-      </div>
-
+    <div className="flex flex-col items-center justify-end h-screen p-5 box-border bg-gray-50 overflow-hidden font-sans">
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
-          <Button className="px-8 py-3 text-lg">
+          <Button className="z-10 cursor-pointer" variant="outline">
             Plan Your Trip
           </Button>
         </DialogTrigger>
@@ -139,6 +131,10 @@ const LandingPage: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <div className="w-screen h-screen absolute top-0 left-0 z-0">
+        <MapComponent />
+      </div>
     </div>
   );
 };
