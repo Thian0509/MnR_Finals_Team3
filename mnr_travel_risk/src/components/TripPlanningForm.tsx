@@ -17,6 +17,10 @@ import { useDirectionsService } from "@/hooks/useDirectionsService";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MapPin } from "lucide-react";
 import { Coord } from "@/types/coord";
+import buffer from "@turf/buffer";
+import { lineString } from "@turf/helpers";
+import { generateRandomPositions } from "@/hooks/useRisks";
+
 
 interface TripPlanningFormProps {
   isOpen: boolean;
@@ -85,8 +89,29 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       // calculate the directions
       const directions = await getDirections(new google.maps.LatLng(fromCoordinates.lat, fromCoordinates.lng), new google.maps.LatLng(toCoordinates.lat, toCoordinates.lng), google.maps.TravelMode.DRIVING);
       renderDirections(directions, map);
+
+      const path = directions.routes[0].overview_path;
+
+      // Convert to Turf LineString (LngLat order!)
+      const turfLine = lineString(path.map(p => [p.lng(), p.lat()]));
+
+      const buffered = buffer(turfLine, 25, { units: "kilometers" });
       
-      // Notify parent component that directions have been rendered
+      const polygon = new google.maps.Polygon({
+        paths: buffered?.geometry.coordinates[0].map(([lng, lat]) => ({ lat, lng })) || [],
+        strokeColor: "#0000FF",
+        strokeWeight: 2,
+      });
+      polygon.setMap(map);
+
+      // take the intersection of the buffered polygon and the risk markers, only plot those that are inside the buffered polygon
+      const riskMarkers = generateRandomPositions(15, { lat: fromCoordinates.lat, lng: fromCoordinates.lng, weight: 0 }, 40);
+      const riskPolygon = new google.maps.visualization.HeatmapLayer({
+        data: riskMarkers.map(r => new google.maps.LatLng(r.lat, r.lng) as google.maps.LatLng),
+        radius: 20,
+      });
+      riskPolygon.setMap(map);
+
       onDirectionsRendered?.();
       
       onOpenChange(false);
