@@ -21,6 +21,7 @@ import buffer from "@turf/buffer";
 import { lineString, point } from "@turf/helpers";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { useRisks } from "@/hooks/useRisks";
+import { useReports } from "@/hooks/useReports";
 
 
 interface TripPlanningFormProps {
@@ -71,6 +72,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   const [leaveNow, setLeaveNow] = useState(true);
   const { getDirections, renderDirections } = useDirectionsService();
   const { risks, loading } = useRisks();
+  const { allReports, loading: loadingReports } = useReports();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -106,14 +108,40 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       const turfLine = lineString(path.map(p => [p.lng(), p.lat()]));
 
       const buffered = buffer(turfLine, 25, { units: "kilometers" });
+
+      console.log(buffered);
+      console.log(risks);
+      console.log(allReports);
       
-      // get the risk markers from the map and take the intersection of the buffered polygon and the risk markers
-      const riskMarkers = loading ? [] : risks.filter(r => {
+      const allRiskMarkers = [...risks, ...allReports];
+
+      console.log(allRiskMarkers);
+
+      const riskMarkers = (loading || allReports.length === 0) ? [] : allRiskMarkers.filter(r => {
+        if ('position' in r) {
           const turfPoint = point([r.position.lng, r.position.lat]);
           return booleanPointInPolygon(turfPoint, buffered as any);
-        });
+        } 
+        else if ('coordinates' in r) {
+          const turfPoint = point([(r.coordinates as { lng: number }).lng, (r.coordinates as { lat: number }).lat]);
+          return booleanPointInPolygon(turfPoint, buffered as any);
+        }
+        return false;
+      });
 
-      setAverageRisk(Number((riskMarkers.reduce((acc, r) => acc + r.risk, 0) / riskMarkers.length).toFixed(2)));
+      console.log(riskMarkers);
+
+      const totalRisk = riskMarkers.reduce((acc, r) => {
+        if ('risk' in r) {
+          return acc + (r.risk * 100);
+        }
+        else {
+          return acc + 75;
+        }
+      }, 0);
+
+      const averageRiskValue = riskMarkers.length > 0 ? totalRisk / riskMarkers.length : 0;
+      setAverageRisk(Number(averageRiskValue.toFixed(2)));
 
       if (heatmapLayer) {
         heatmapLayer.setMap(null);
@@ -121,8 +149,11 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
 
       const riskPolygon = new google.maps.visualization.HeatmapLayer({
         data: riskMarkers.map(r => ({
-          location: new google.maps.LatLng(r.position.lat, r.position.lng),
-          weight: r.risk
+          location: new google.maps.LatLng(
+            'position' in r ? r.position.lat : (r.coordinates as { lat: number }).lat, 
+            'position' in r ? r.position.lng : (r.coordinates as { lng: number }).lng
+          ),
+          weight: 'risk' in r ? r.risk : 75
         })),
         map: map,
         radius: 20,

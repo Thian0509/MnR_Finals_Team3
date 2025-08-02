@@ -4,29 +4,8 @@ import prisma from '@/lib/prisma';
 // GET /api/report - Get all risk reports
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
-
-    const reports = await prisma.riskReport.findMany({
-      take: limit,
-      skip: offset,
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-
-    const total = await prisma.riskReport.count();
-
-    return NextResponse.json({
-      reports,
-      pagination: {
-        total,
-        limit,
-        offset,
-        hasMore: offset + limit < total
-      }
-    });
+    const reports = await prisma.riskReport.findMany();
+    return NextResponse.json(reports);
   } catch (error) {
     console.error('Error fetching reports:', error);
     return NextResponse.json(

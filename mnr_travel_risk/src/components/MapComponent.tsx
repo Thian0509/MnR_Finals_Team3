@@ -7,23 +7,14 @@ import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 import useLocation from '@/hooks/useLocation';
 import { LatLng, RiskMarker } from '@/types/coord';
 import { useRisks } from '@/hooks/useRisks';
+import { useReports } from '@/hooks/useReports';
 import { riskIcons } from '@/lib/icons';
 import { capitalize, removeUnderscores } from '@/lib/underscore';
 import { RiskType } from '@/generated/prisma';
 import { LucideIcon, Snowflake } from 'lucide-react';
 import DynamicLucideIcon from './DynamicLucide';
 
-type Report = {
-  coordinates: {
-    lat: number, 
-    lng: number 
-  }
-  createdAt: Date,
-  id: string
-  riskDescription: string | null
-  riskType: RiskType
-  updatedAt: Date
-}
+
 
 const containerStyle = {
   width: '100%',
@@ -71,9 +62,9 @@ const MapComponent: React.FC<{
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
-  const [allReports, setAllReports] = useState<Report[]>([]);
   const { location, isLoading } = useLocation();
   const { risks, loading } = useRisks();
+  const { allReports, loadReports } = useReports();
 
   useEffect(() => {
     if (location && !isLoading) {
@@ -104,24 +95,7 @@ const MapComponent: React.FC<{
       setMarkers(results);
     }, [risks]);
 
-  const loadReports = useCallback(
-    async (ctr: LatLng) => {
-      try {
-        const resp = await fetch('/api/report')
-        if (!resp.ok) {
-          console.error('Failed to fetch reports:', resp.status);
-          return;
-        }
-        const data = await resp.json();
-        const reports: Report[] = data.reports || [];
-        console.log('Loaded reports:', reports.length);
-        setAllReports(reports);
-      } catch (error) {
-        console.error('Error loading reports:', error);
-      }
-    },
-    []
-  )
+
 
   useEffect(() => {
     setIsClient(true);
@@ -136,26 +110,15 @@ const MapComponent: React.FC<{
     });
     setMap(mapInstance);
     loadMarkers(center);
-    loadReports(center);
+    loadReports();
     const trafficLayer = new google.maps.TrafficLayer();
     trafficLayer.setMap(mapInstance);
     trafficLayerRef.current = trafficLayer;
-  }, [loadMarkers, loadReports, center]);
+  }, [loadMarkers, loadReports, center, setMap]);
 
   const onUnmount = useCallback(() => {
     setMap(null);
   }, []);
-
-  // const handleRefresh = () => {
-  //   if (map) {
-  //     const newCenter = map.getCenter()?.toJSON();
-  //     if (newCenter) {
-  //       setCenter({ ...newCenter, weight: 0 });
-  //       loadMarkers({ ...newCenter, weight: 0 });
-  //       loadReports({ ...newCenter, weight: 0 });
-  //     }
-  //   }
-  // };
 
   useEffect(() => {
     if (!map || !window.google?.maps?.visualization || markers.length === 0) return;
@@ -208,11 +171,10 @@ const MapComponent: React.FC<{
           />
         )}
         {allReports.map((report) => {
-          console.log(report.riskType)
           return (
             <Marker
               key={report.id}
-              position={{ lat: report.coordinates.lat, lng: report.coordinates.lng }}
+              position={{ lat: (report.coordinates as { lat: number }).lat, lng: (report.coordinates as { lng: number }).lng }}
               title={`${capitalize(removeUnderscores(report.riskType))} - ${report.riskDescription || 'No description'}`}
             />
           );
