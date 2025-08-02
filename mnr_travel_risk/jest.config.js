@@ -10,12 +10,18 @@ const createJestConfig = nextJest({
 const config = {
   coverageProvider: 'v8',
   testEnvironment: 'jsdom',
+   setupFilesAfterEnv: ['<rootDir>/src/setupTests.js'], 
+
   // Add more setup options before each test is run
   // setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
     moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    // Add other path mappings as needed
+ 
+
   },
+  transform: {'^.+\\.ts?$': 'ts-jest'},
+"transformIgnorePatterns": ["node_modules/(?!nanostores/index.js)/"]
+
 }
  
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
