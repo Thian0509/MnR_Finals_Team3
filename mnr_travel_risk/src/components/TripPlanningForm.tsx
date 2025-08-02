@@ -104,14 +104,6 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       });
       polygon.setMap(map);
 
-      // take the intersection of the buffered polygon and the risk markers, only plot those that are inside the buffered polygon
-      const riskMarkers = generateRandomPositions(15, { lat: fromCoordinates.lat, lng: fromCoordinates.lng, weight: 0 }, 40);
-      const riskPolygon = new google.maps.visualization.HeatmapLayer({
-        data: riskMarkers.map(r => new google.maps.LatLng(r.lat, r.lng) as google.maps.LatLng),
-        radius: 20,
-      });
-      riskPolygon.setMap(map);
-
       onDirectionsRendered?.();
       
       onOpenChange(false);

@@ -1,5 +1,64 @@
-import { LatLng } from "@/types/coord";
+import { useState, useEffect } from 'react';
+import { LatLng, RiskMarker } from '@/types/coord';
 
+// Types for API responses
+interface Risk {
+  id: string;
+  coordinates: { lat: number; lng: number };
+  riskLevel: number;
+  riskDescription?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const useRisks = () => {
+  const [risks, setRisks] = useState<RiskMarker[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRisks = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/risk`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch risks: ${response.statusText}`);
+      }
+
+      const data: Risk[] = await response.json();
+
+      const transformedRisks: RiskMarker[] = data.map(risk => ({
+        position: {
+          lat: risk.coordinates.lat,
+          lng: risk.coordinates.lng,
+          weight: risk.riskLevel
+        },
+        risk: risk.riskLevel
+      }));
+
+      setRisks(transformedRisks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch risks');
+      console.error('Error fetching risks:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRisks();
+  }, []);
+
+  return {
+    risks,
+    loading,
+    error,
+  };
+};
+
+// Keep the existing random position generator for testing/fallback
 export const generateRandomPositions = (
   count: number,
   center: LatLng,

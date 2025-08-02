@@ -6,7 +6,7 @@ import mapStyles from '@/lib/mapStyles.json';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 import useLocation from '@/hooks/useLocation';
 import { LatLng, RiskMarker } from '@/types/coord';
-import { generateRandomPositions } from '@/hooks/useRisks';
+import { useRisks } from '@/hooks/useRisks';
 
 const containerStyle = {
   width: '100%',
@@ -24,6 +24,7 @@ const MapComponent: React.FC<{
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
   const { location, isLoading } = useLocation();
+  const { risks, loading } = useRisks();
 
   useEffect(() => {
     if (location && !isLoading) {
@@ -36,7 +37,7 @@ const MapComponent: React.FC<{
   
   const loadMarkers = useCallback(
     async (ctr: LatLng) => {
-      const positions = [ctr, ...generateRandomPositions(15, ctr, 40)];
+      const positions = risks.map(r => r.position);
       const results: RiskMarker[] = [];
 
       for (const pos of positions) {
@@ -51,9 +52,7 @@ const MapComponent: React.FC<{
       }
 
       setMarkers(results);
-    },
-    []
-  );
+    }, [risks]);
 
   useEffect(() => {
     setIsClient(true);
@@ -132,7 +131,7 @@ const MapComponent: React.FC<{
     }
   }, [directionsRendered, map]);
 
-  if (!isClient || !isLoaded) {
+  if (!isClient || !isLoaded || loading) {
     return (
       <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
         Loading Map...
