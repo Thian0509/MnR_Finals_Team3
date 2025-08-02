@@ -5,7 +5,7 @@ export const useGoogleMaps = () => {
   const { isLoaded, loadError } = useLoadScript({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
-    libraries: ['places', 'marker', 'visualization'],
+    libraries: ['places', 'visualization', 'geometry'],
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);

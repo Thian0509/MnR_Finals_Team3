@@ -68,7 +68,9 @@ const MapComponent: React.FC<{
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
+  
   const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
+  const trafficLayerRef = useRef<google.maps.TrafficLayer | null>(null);
 
   const loadMarkers = useCallback(
     async (ctr: LatLng) => {
@@ -104,6 +106,9 @@ const MapComponent: React.FC<{
     });
     setMap(mapInstance);
     loadMarkers(center);
+    const trafficLayer = new google.maps.TrafficLayer();
+    trafficLayer.setMap(mapInstance);
+    trafficLayerRef.current = trafficLayer;
   }, [loadMarkers, center]);
 
   const onUnmount = useCallback(() => {
@@ -135,7 +140,7 @@ const MapComponent: React.FC<{
     const heatmapLayer = new google.maps.visualization.HeatmapLayer({
       data: heatmapData,
       map: map,
-      radius: 10,
+      radius: 20,
       opacity: 0.6,
       gradient: [
         'rgba(0, 255, 0, 0)',
