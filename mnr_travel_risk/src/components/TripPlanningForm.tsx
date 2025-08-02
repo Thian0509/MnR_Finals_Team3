@@ -13,17 +13,26 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import PlaceAutocomplete from "@/components/PlaceAutocomplete"
+import { useDirectionsService } from "@/hooks/useDirectionsService";
 
 interface TripPlanningFormProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger?: React.ReactNode;
+
+  // google maps stuff
+  map: google.maps.Map | null;
+  setMap: (map: google.maps.Map | null) => void;
+  onDirectionsRendered?: () => void;
 }
 
 const TripPlanningForm: React.FC<TripPlanningFormProps> = ({ 
   isOpen, 
   onOpenChange, 
-  trigger 
+  trigger,
+  map,
+  setMap,
+  onDirectionsRendered,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +40,8 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   const [toLocation, setToLocation] = useState("");
   const [fromCoordinates, setFromCoordinates] = useState({ lat: 0, lng: 0 });
   const [toCoordinates, setToCoordinates] = useState({ lat: 0, lng: 0 });
+  const [leaveNow, setLeaveNow] = useState(false);
+  const { getDirections, renderDirections } = useDirectionsService();
   
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,31 +49,32 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
     setIsLoading(true);
     
     const formData = new FormData(e.currentTarget);
-    const travelDate = formData.get("date") as string;
-    const travelTime = formData.get("time") as string;
+    let travelDate = formData.get("date") as string;
+    let travelTime = formData.get("time") as string;
+
+    // If "Leave now" is checked, use current date and time
+    if (leaveNow) {
+      const now = new Date();
+      travelDate = now.toISOString().split('T')[0];
+      travelTime = now.toTimeString().slice(0, 5);
+    }
 
     // Validate form data
-    if (!fromLocation || !toLocation || !travelDate || !travelTime) {
+    if (!fromLocation || !toLocation || (!leaveNow && (!travelDate || !travelTime))) {
       setError("Please fill in all required fields.");
       setIsLoading(false);
       return;
     }
 
     try {
-      // Here you would typically make an API call to plan the trip
-      console.log("Planning trip:", {
-        from: fromCoordinates,
-        to: toCoordinates,
-        date: travelDate,
-        time: travelTime
-      });
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // calculate the directions
+      const directions = await getDirections(new google.maps.LatLng(fromCoordinates.lat, fromCoordinates.lng), new google.maps.LatLng(toCoordinates.lat, toCoordinates.lng), google.maps.TravelMode.DRIVING);
+      renderDirections(directions, map);
       
-      // Handle successful trip planning
-      console.log("Trip planned successfully!");
+      // Notify parent component that directions have been rendered
+      onDirectionsRendered?.();
       
+      onOpenChange(false);
     } catch (err) {
       setError("Failed to plan trip. Please try again.");
     } finally {
@@ -105,6 +117,19 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
               </div>
             </div>
             
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="leaveNow"
+                checked={leaveNow}
+                onChange={(e) => setLeaveNow(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <Label htmlFor="leaveNow" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Leave now
+              </Label>
+            </div>
+            
             <div className="grid grid-cols-1 gap-4">
               <div className="grid gap-3">
                 <Label htmlFor="date">Travel Date</Label>
@@ -112,7 +137,9 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
                   id="date" 
                   name="date" 
                   type="date" 
-                  required
+                  required={!leaveNow}
+                  disabled={leaveNow}
+                  className={leaveNow ? "opacity-50 cursor-not-allowed" : ""}
                 />
               </div>
               <div className="grid gap-3">
@@ -122,7 +149,9 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
                   name="time" 
                   type="time"
                   step="60" 
-                  required 
+                  required={!leaveNow}
+                  disabled={leaveNow}
+                  className={leaveNow ? "opacity-50 cursor-not-allowed" : ""}
                 />
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { useLoadScript } from "@react-google-maps/api";
+import { useState } from "react";
 
 export const useGoogleMaps = () => {
   const { isLoaded, loadError } = useLoadScript({
@@ -7,5 +8,7 @@ export const useGoogleMaps = () => {
     libraries: ['places', 'marker'],
   });
 
-  return { isLoaded, loadError };
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+
+  return { isLoaded, loadError, map, setMap };
 };

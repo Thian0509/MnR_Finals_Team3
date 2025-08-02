@@ -2,11 +2,12 @@
 
 import React, { useCallback, useState, useEffect } from 'react';
 import { GoogleMap } from '@react-google-maps/api';
-import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 import mapStyles from '@/lib/mapStyles.json';
 import { createRoot } from 'react-dom/client';
 import { Badge } from '@/components/ui/badge';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
+import { Button } from '@/components/ui/button';
+import { RefreshCcw } from 'lucide-react';
 
 const containerStyle = {
   width: '100%',
@@ -59,10 +60,13 @@ const generateRandomPositions = (
   return positions;
 };
 
-const MapComponent: React.FC = () => {
+const MapComponent: React.FC<{
+  isLoaded: boolean;
+  map: google.maps.Map | null;
+  setMap: (map: google.maps.Map | null) => void;
+  directionsRendered?: boolean;
+}> = ({ isLoaded, map, setMap, directionsRendered }) => {
   const [isClient, setIsClient] = useState(false);
-  const { isLoaded } = useGoogleMaps();
-  const [map, setMap] = useState<google.maps.Map | null>(null);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
 
@@ -98,7 +102,6 @@ const MapComponent: React.FC = () => {
       streetViewControl: false,
       fullscreenControl: false,
       zoomControl: false,
-      styles: mapStyles,
     });
     setMap(mapInstance);
     // Initial marker load
@@ -148,6 +151,15 @@ const MapComponent: React.FC = () => {
     return () => markerElements.forEach(m => (m.map = null));
   }, [map, markers]);
 
+  // Handle directions rendered
+  useEffect(() => {
+    if (directionsRendered && map) {
+      // Force a map refresh or update when directions are rendered
+      // This ensures the map properly displays the directions
+      map.setZoom(map.getZoom() || 10);
+    }
+  }, [directionsRendered, map]);
+
   if (!isClient || !isLoaded) {
     return (
       <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
@@ -158,22 +170,14 @@ const MapComponent: React.FC = () => {
 
   return isLoaded ? (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <button
+      <Button
         onClick={handleRefresh}
-        style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          zIndex: 5,
-          padding: '8px 12px',
-          background: '#fff',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-          cursor: 'pointer',
-        }}
+        variant="outline"
+        className="absolute top-4 left-4 z-10"
       >
+        <RefreshCcw className="h-4 w-4" />
         Refresh Risks
-      </button>
+      </Button>
 
       <GoogleMap
         mapContainerStyle={containerStyle}
@@ -181,7 +185,7 @@ const MapComponent: React.FC = () => {
         zoom={10}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{ mapId: 'DEMO_MAP_ID' }}
+        options={{ mapId: 'DEMO_MAP_ID', styles: mapStyles }}
       />
     </div>
   ) : (
