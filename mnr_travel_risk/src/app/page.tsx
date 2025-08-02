@@ -16,67 +16,70 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import Loading from "@/components/Loading";
-import PlaceAutocomplete from "@/components/PlaceAutocomplete"
 import { WeatherReportForm } from "@/components/report-form"
-import { RecentReportsTable } from "@/components/recent-reports-table"
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { RecentReportsDrawer } from "@/components/recent-reports-table"
 import { Coord } from "@/types/coord";
+import { signOut } from "@/lib/auth-client";
+import { ArrowRight, LogOut, MapPin, Sparkles, Sun, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { truncate } from "@/lib/trunc";
+import { useRisks } from "@/hooks/useRisks";
+
 
 function App() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [directionsRendered, setDirectionsRendered] = useState(false);
   const { isLoaded, loadError, map, setMap } = useGoogleMaps();
   const { location, error, isLoading, requestLocation, permissionStatus } = useLocation();
-
+  const router = useRouter();
   const [fromLocation, setFromLocation] = useState<string>("");
   const [toLocation, setToLocation] = useState<string>("");
   const [fromCoordinates, setFromCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
   const [toCoordinates, setToCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
-  const [reportError, setReportError] = useState<string | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
+  const [showPlanning, setShowPlanning] = useState(false);
+  const { risks } = useRisks();
+  const [heatmapLayer, setHeatmapLayer] = useState<any | null>(null);
+  const [averageRisk, setAverageRisk] = useState(0);
 
+  useEffect(() => {
+    if (!map) return;
+    if (!google.maps.visualization.HeatmapLayer) return;
+
+    const heatmapData = risks.map(({ position, risk }) => ({
+      location: new google.maps.LatLng(position.lat, position.lng),
+      weight: risk
+    }));
+
+    const heatmapLayer = new google.maps.visualization.HeatmapLayer({
+      data: heatmapData,
+      map: map,
+      radius: 20,
+      opacity: 0.6,
+      gradient: [
+        'rgba(0, 255, 0, 0)',
+        'rgba(0, 255, 0, 1)',
+        'rgba(128, 255, 0, 1)',
+        'rgba(255, 255, 0, 1)',
+        'rgba(255, 191, 0, 1)',
+        'rgba(255, 127, 0, 1)',
+        'rgba(255, 63, 0, 1)',
+        'rgba(255, 0, 0, 1)'
+      ]
+    });
+
+    setHeatmapLayer(heatmapLayer);
+    setAverageRisk(risks.reduce((acc, r) => acc + r.risk, 0) / risks.length);
+  }, [map, risks]);
+  
   const handleDirectionsRendered = () => {
     setDirectionsRendered(true);
     setTimeout(() => setDirectionsRendered(false), 100);
   };
-    
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setReportError(null);
-    setReportLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const travelDate = formData.get("date") as string;
-    const travelTime = formData.get("time") as string;
-
-    // Validate form data
-    if (!fromCoordinates || !toCoordinates || !travelDate || !travelTime) {
-      setReportError("Please fill in all required fields.");
-      setReportLoading(false);
-      return;
-    }
-
-    try {
-      // Here you would typically make an API call to plan the trip
-      console.log("Planning trip:", {
-        from: fromLocation,
-        to: toLocation,
-        date: travelDate,
-        time: travelTime
-      });
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Handle successful trip planning
-      console.log("Trip planned successfully!");
-
-    } catch (err) {
-      setReportError("Failed to plan trip. Please try again.");
-    } finally {
-      setReportLoading(false);
-    }
+  function handleLogOut() {
+    signOut();
+    router.push("/");
   }
 
   if (loadError) {
@@ -117,14 +120,6 @@ function App() {
 
   return (
     <div className="flex flex-col items-center justify-end h-screen p-5 box-border bg-gray-50 overflow-hidden font-sans">
-      <TripPlanningForm 
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        map={map}
-        setMap={setMap}
-        onDirectionsRendered={handleDirectionsRendered}
-      />
-
       <Dialog open={error !== null} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -154,23 +149,73 @@ function App() {
           map={map}
           setMap={setMap}
           directionsRendered={directionsRendered}
+          heatmapLayer={heatmapLayer}
         />
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 z-10 p-5">
-        <div className="flex flex-col items-center gap-4">
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-5 flex items-center justify-center">
+        <div className="flex flex-col gap-4">
+          {showPlanning && <Card className="relative">
+            <Button variant="outline" className="absolute top-1 right-1 rounded-full h-5 w-5" size="sm" onClick={() => setShowPlanning(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+            <CardContent>
+              <div className="flex justify-between">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>{truncate(fromLocation, 20)}</span>
+                    <ArrowRight className="h-4 w-4" />
+                    <span>{truncate(toLocation, 20)}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Sparkles className="h-4 w-4 mr-2 text-indigo-500" /> Plan your trip with the map and the tools below.
+                  </div>
+                </div>
+                <div className="flex gap-3 items-center">
+                  <div className="flex items-center justify-end flex-col px-2">
+                    <Sun className="h-10 w-10 text-yellow-500" />
+                  </div>
+                  <div className="flex items-center justify-end flex-col">
+                    <h1 className="text-3xl font-bold text-green-500">25</h1>
+                    <p className="text-xs">minutes</p>
+                  </div>
+                  <div className="flex items-center justify-end flex-col">
+                    <h1 className="text-3xl font-bold text-red-500">{averageRisk.toFixed(1)}%</h1>
+                    <p className="text-xs">Travel Risk</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>}
           <div className="flex gap-3">
             <TripPlanningForm 
               isOpen={isDialogOpen}
               onOpenChange={setIsDialogOpen}
               map={map}
-              setMap={setMap}
+              heatmapLayer={heatmapLayer}
+              setHeatmapLayer={setHeatmapLayer}
               onDirectionsRendered={handleDirectionsRendered}
+              fromLocation={fromLocation}
+              toLocation={toLocation}
+              fromCoordinates={fromCoordinates}
+              toCoordinates={toCoordinates}
+              setFromLocation={setFromLocation}
+              setToLocation={setToLocation}
+              setFromCoordinates={setFromCoordinates}
+              setToCoordinates={setToCoordinates}
+              setShowPlanning={setShowPlanning}
+              averageRisk={averageRisk}
+              setAverageRisk={setAverageRisk}
             />
 
-            <WeatherReportForm />
+            <WeatherReportForm currentLocation={location ? { lat: location.coords.latitude, lng: location.coords.longitude } : undefined} />
+            <RecentReportsDrawer />
+            <Button onClick={handleLogOut} variant="outline">
+              <LogOut className="h-4 w-4" />
+              Log Out
+            </Button>
           </div>
-          <RecentReportsTable />
         </div>
       </div>
     </div>
