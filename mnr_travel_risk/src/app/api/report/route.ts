@@ -40,27 +40,28 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { coordinates, riskLevel, riskDescription } = body;
+    const { coordinates, riskTypes, riskDescription } = body;
 
-    if (!coordinates || riskLevel === undefined) {
+    console.debug(body)
+
+    if (!coordinates || !riskTypes) {
       return NextResponse.json(
-        { error: 'coordinates and riskLevel are required' },
+        { error: 'coordinates and riskTypes are required' },
         { status: 400 }
       );
     }
 
-    if (riskLevel < 1 || riskLevel > 5) {
-      return NextResponse.json(
-        { error: 'riskLevel must be between 1 and 5' },
-        { status: 400 }
-      );
+    // barely randomise the coordinates (like 25km)
+    const randomisedCoordinates = {
+      lat: coordinates.lat + (Math.random() * 0.00025 - 0.000125),
+      lng: coordinates.lng + (Math.random() * 0.00025 - 0.000125)
     }
 
     const report = await prisma.riskReport.create({
       data: {
         id: crypto.randomUUID(),
-        coordinates,
-        riskLevel,
+        coordinates: randomisedCoordinates,
+        riskType: riskTypes,
         riskDescription: riskDescription || null
       }
     });

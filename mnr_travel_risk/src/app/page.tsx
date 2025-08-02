@@ -90,7 +90,7 @@ function App() {
     );
   }
 
-  if (!isLoaded) {
+  if (!isLoaded || isLoading) {
     return <Loading />;
   }
 
@@ -142,6 +142,10 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-20 bg-black/10 backdrop-blur-sm p-2 rounded-md">
+        <h1 className="text-xl font-bold text-white">SafetyBuddy</h1>
+      </div>
 
       <div className="w-screen h-screen absolute top-0 left-0 z-0">
         <MapComponent

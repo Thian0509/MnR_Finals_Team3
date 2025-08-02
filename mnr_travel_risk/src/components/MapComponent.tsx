@@ -7,21 +7,57 @@ import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 import useLocation from '@/hooks/useLocation';
 import { LatLng, RiskMarker } from '@/types/coord';
 import { useRisks } from '@/hooks/useRisks';
+import { riskIcons } from '@/lib/icons';
+import { capitalize, removeUnderscores } from '@/lib/underscore';
+import { RiskType } from '@/generated/prisma';
+import { LucideIcon, Snowflake } from 'lucide-react';
+import DynamicLucideIcon from './DynamicLucide';
+
 type Report = {
   coordinates: {
     lat: number, 
     lng: number 
   }
-    
-createdAt: Date,
-id: string
-riskDescription: string | null
-riskLevel: number
-updatedAt: Date
+  createdAt: Date,
+  id: string
+  riskDescription: string | null
+  riskType: RiskType
+  updatedAt: Date
 }
+
 const containerStyle = {
   width: '100%',
   height: '100%',
+};
+
+// Function to generate SVG for risk icons
+const generateRiskIconSVG = (riskType: RiskType): string => {
+  const iconPaths: Record<RiskType, string> = {
+    SNOW: "M2 12h2l1-8 4 16 2-10 2 10 4-16 1 8h2", // Snowflake icon
+    HAIL: "M16 4v16M7 4v16M4 8h4M4 16h4M12 8h4M12 16h4", // CloudHail icon
+    RAIN: "M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242", // CloudRain icon
+    FOG: "M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M8 18h8M8 22h8", // CloudFog icon
+    ICE: "M2 12h2l1-8 4 16 2-10 2 10 4-16 1 8h2", // CloudSnow icon (using snowflake)
+    WIND: "M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2", // Wind icon
+    SANDY: "M12 2v20M2 12h20", // Hourglass icon
+    BAD_GRAVEL: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z", // Disc3 icon
+    MUD: "M8 12h8M12 8v8", // EqualApproximately icon
+    ROCK: "M3 21h18M5 21V7l8-4v18M19 21V11l-6-4", // Mountain icon
+    DEBRIS: "M3 6h18v2H3V6zM3 10h18v2H3v-2zM3 14h18v2H3v-2z", // Trash icon
+    POTHOLE: "M9 21h6M12 3v18M3 12h18", // TrafficCone icon
+    ROADWORK: "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z", // Construction icon
+    POLICE: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", // Shield icon
+    CLOSED_ROAD: "M18 6 6 18M6 6l12 12", // XCircle icon
+  };
+
+  const path = iconPaths[riskType] || iconPaths.SNOW;
+  
+  return `
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="12" fill="#ef4444" stroke="white" stroke-width="2"/>
+      <path d="${path}" stroke="white" stroke-width="1.5" fill="none" transform="translate(8, 8) scale(0.8)"/>
+    </svg>
+  `;
 };
 
 const MapComponent: React.FC<{
@@ -35,7 +71,7 @@ const MapComponent: React.FC<{
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
-  const [closeReports, setCloseReports] = useState<(Report & { distance: number })[]>([]);
+  const [allReports, setAllReports] = useState<Report[]>([]);
   const { location, isLoading } = useLocation();
   const { risks, loading } = useRisks();
 
@@ -79,25 +115,7 @@ const MapComponent: React.FC<{
         const data = await resp.json();
         const reports: Report[] = data.reports || [];
         console.log('Loaded reports:', reports.length);
-        
-        const distReports = reports.map((report) => {
-          const toRad = (value: number) => (value * Math.PI) / 180;
-          const R = 6371; // Earth radius in km
-          const dLat = toRad(report.coordinates.lat - ctr.lat);
-          const dLng = toRad(report.coordinates.lng - ctr.lng);
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(ctr.lat)) *
-          Math.cos(toRad(report.coordinates.lat)) *
-          Math.sin(dLng / 2) *
-          Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const distance = R * c;
-          return {distance, ...report};
-        });
-        const closeReports = distReports.filter((value) => value.distance < 1000000);
-        console.log('Close reports:', closeReports.length);
-        setCloseReports(closeReports);
+        setAllReports(reports);
       } catch (error) {
         console.error('Error loading reports:', error);
       }
@@ -174,48 +192,31 @@ const MapComponent: React.FC<{
   }
 
   return isLoaded ? (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      
-
+    <div className="relative w-full h-full select-none">
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
         zoom={10}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{ mapId: 'DEMO_MAP_ID', styles: mapStyles }}
+        options={{ styles: mapStyles }} // mapId: 'DEMO_MAP_ID', 
       >
         {location && (
           <Marker 
             position={{ lat: location.coords.latitude, lng: location.coords.longitude }} 
-            icon={{
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="8" fill="#3b82f6" stroke="white" stroke-width="3"/>
-                  <circle cx="12" cy="12" r="3" fill="white"/>
-                </svg>
-              `),
-              scaledSize: new google.maps.Size(24, 24),
-            }}
             title="Your Location"
           />
         )}
-        {closeReports.map((report) => (
-          <Marker
-            key={report.id}
-            position={{ lat: report.coordinates.lat, lng: report.coordinates.lng }}
-            title={`Risk Level: ${report.riskLevel} - ${report.riskDescription || 'No description'}`}
-            icon={{
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="16" cy="16" r="12" fill="${report.riskLevel > 7 ? '#ef4444' : report.riskLevel > 4 ? '#f59e0b' : '#10b981'}" stroke="white" stroke-width="3"/>
-                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-weight="bold">${report.riskLevel}</text>
-                </svg>
-              `),
-              scaledSize: new google.maps.Size(32, 32),
-            }}
-          />
-        ))}
+        {allReports.map((report) => {
+          console.log(report.riskType)
+          return (
+            <Marker
+              key={report.id}
+              position={{ lat: report.coordinates.lat, lng: report.coordinates.lng }}
+              title={`${capitalize(removeUnderscores(report.riskType))} - ${report.riskDescription || 'No description'}`}
+            />
+          );
+        })}
       </GoogleMap>
     </div>
   ) : (

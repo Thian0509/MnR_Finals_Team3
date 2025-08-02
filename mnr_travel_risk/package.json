@@ -25,6 +25,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.536.0",
+    "lucide-static": "^0.536.0",
     "next": "^15.4.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -39,6 +40,7 @@
     "@types/react-dom": "^19",
     "lodash": "^4.17.21",
     "prisma": "^6.13.0",
+    "svg-inline-loader": "^0.8.2",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5"

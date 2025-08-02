@@ -14,11 +14,32 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Coord } from "@/types/coord"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, CloudRain, CloudSnow, Cloud, Wind, Sun, Car, Construction, Shield, XCircle, Snowflake, CloudHail, CloudFog, Hourglass, Disc3, EqualApproximately, Mountain, TrafficCone, Trash } from "lucide-react"
+import { RiskType } from "@/generated/prisma"
+import { removeUnderscores, capitalize } from "@/lib/underscore"
 
 interface WeatherReportFormProps {
     className?: string
     currentLocation?: Coord
+}
+
+// Map road risks to appropriate Lucide icons
+const riskIcons: Record<RiskType, React.ComponentType<{ className?: string }>> = {
+    SNOW: Snowflake,
+    HAIL: CloudHail,
+    RAIN: CloudRain,
+    FOG: CloudFog,
+    ICE: CloudSnow,
+    WIND: Wind,
+    SANDY: Hourglass,
+    BAD_GRAVEL: Disc3,
+    MUD: EqualApproximately,
+    ROCK: Mountain,
+    DEBRIS: Trash,
+    POTHOLE: TrafficCone,
+    ROADWORK: Construction,
+    POLICE: Shield,
+    CLOSED_ROAD: XCircle,
 }
 
 export function WeatherReportForm({ className, currentLocation }: WeatherReportFormProps) {
@@ -26,15 +47,15 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
-    const [riskLevel, setRiskLevel] = useState<number>(1)
+    const [selectedRisk, setSelectedRisk] = useState<RiskType | null>(null)
 
-    const riskLevels = [
-        { value: 1, label: "Low", color: "bg-green-500", description: "Safe weather" },
-        { value: 2, label: "Moderate", color: "bg-yellow-500", description: "Minor disturbances, nothing to upset a trip" },
-        { value: 3, label: "High", color: "bg-orange-500", description: "Drive with caution" },
-        { value: 4, label: "Severe", color: "bg-red-500", description: "Drive if necessary" },
-        { value: 5, label: "Critical", color: "bg-red-700", description: "Holy moly, it's not worth it" }
-    ]
+    console.debug(currentLocation)
+
+    const handleRiskToggle = (risk: RiskType) => {
+        setSelectedRisk(prev => 
+            prev === risk ? null : risk
+        )
+    }
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
@@ -54,6 +75,12 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
             return
         }
 
+        if (!selectedRisk) {
+            setError("Please select at least one road risk type.")
+            setIsLoading(false)
+            return
+        }
+
         try {
             const response = await fetch("/api/report", {
                 method: "POST",
@@ -62,7 +89,7 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
                 },
                 body: JSON.stringify({
                     coordinates: { lat, lng },
-                    riskLevel,
+                    riskTypes: selectedRisk,
                     riskDescription: description,
                 }),
             })
@@ -77,7 +104,7 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
             setTimeout(() => {
                 setSuccess(false)
                 setIsOpen(false)
-                setRiskLevel(1)
+                setSelectedRisk(null)
                 if (e && e.currentTarget) {
                     e.currentTarget.reset()
                 }
@@ -95,14 +122,14 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
             <DialogTrigger asChild>
                 <Button variant="outline">
                     <AlertTriangle className="h-4 w-4" />
-                    Report Hazardous Weather
+                    Report Road Hazards
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                    <DialogTitle>Report Weather Conditions</DialogTitle>
+                    <DialogTitle>Report Road Conditions</DialogTitle>
                     <DialogDescription>
-                        Help other travelers by reporting current weather conditions in your area.
+                        Help other travelers by reporting current road conditions in your area.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -122,37 +149,40 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        {/* Risk Level Selection */}
+                        {/* Road Risk Selection */}
                         <div className="space-y-3">
-                            <Label>Weather Risk Level</Label>
-                            <div className="grid grid-cols-1 gap-2">
-                                {riskLevels.map((level) => (
-                                    <div
-                                        key={level.value}
-                                        className={cn(
-                                            " flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors",
-                                            riskLevel === level.value
-                                                ? "border-primary bg-primary/5"
-                                                : "border-gray-200 hover:bg-gray-50"
-                                        )}
-                                        onClick={() => setRiskLevel(level.value)}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="riskLevel"
-                                            value={level.value}
-                                            checked={riskLevel === level.value}
-                                            onChange={() => setRiskLevel(level.value)}
-                                            className="sr-only"
-                                        />
-                                        <Badge className={cn("text-white", level.color)}>
-                                            {level.label}
-                                        </Badge>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium">{level.description}</p>
+                            <Label>Select Road Hazards</Label>
+                            <div className="grid grid-cols-5 gap-4 items-center justify-center">
+                                {Object.values(RiskType).map((risk) => {
+                                    const IconComponent = riskIcons[risk] || AlertTriangle
+                                    const isSelected = selectedRisk === risk
+                                    
+                                    return (
+                                        <div
+                                            key={risk}
+                                            className={cn(
+                                                "h-24 w-24 flex flex-col justify-center items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                                                isSelected
+                                                    ? "border-blue-500 bg-blue-500/5"
+                                                    : "border-gray-200 hover:bg-gray-50"
+                                            )}
+                                            onClick={() => handleRiskToggle(risk)}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                name="risks"
+                                                value={risk}
+                                                checked={isSelected}
+                                                onChange={() => handleRiskToggle(risk)}
+                                                className="sr-only"
+                                            />
+                                            <div className="flex flex-col items-center justify-center text-center gap-2 w-20">
+                                                <IconComponent className="h-8 w-8 text-gray-600" />
+                                                <p className="text-sm font-medium">{capitalize(removeUnderscores(risk))}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
 
@@ -163,7 +193,7 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
                                 id="description"
                                 name="description"
                                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder="Describe the weather situation"
+                                placeholder="Describe the road conditions in detail"
                             />
                         </div>
 
