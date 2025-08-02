@@ -26,7 +26,7 @@ model User {
   accounts      Account[]
   profile       UserProfile?
   trips         Trip[]
-  alerts        Alert[]        // <-- Add this line
+  alerts        Alert[] // This relation remains
 
   @@unique([email])
   @@map("user")
@@ -89,66 +89,52 @@ model UserProfile {
 }
 
 model Trip {
-  id        String   @id
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  from          String
+  to            String
+  departureTime DateTime
+  notified      Boolean  @default(false) // To track if a notification has been sent
 
-  startCoordinates Json
-  endCoordinates Json
-
-  travelTime  Int
-  travelDistance Int
-  travelMode String
-  travelType String
-
-  routineAlerts RoutineAlert[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("trip")
+  @@index([notified, departureTime]) // Index for efficient cron job queries
 }
 
 model Risk {
-  id        String   @id
-  coordinates Json
-  riskLevel Int
+  id              String   @id
+  coordinates     Json
+  riskLevel       Int
   riskDescription String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("risk")
 }
 
 model RiskReport {
-  id        String   @id
-  coordinates Json
-  riskLevel Int
+  id              String   @id
+  coordinates     Json
+  riskLevel       Int
   riskDescription String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("risk_report")
-}
-
-model RoutineAlert {
-  id        String   @id
-  tripId    String
-  message   String
-  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  arrivalTime DateTime
-  cronString String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("routine_alert")
 }
 
 model Alert {
   id        String   @id @default(uuid())
   userId    String
   message   String
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("alert")
+  @@index([userId, isRead]) // <-- Add this for faster queries
 }

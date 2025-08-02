@@ -1,7 +1,6 @@
 "use client"
 
-
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import MapComponent from "@/components/MapComponent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +13,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
-import { toast, Toaster } from "sonner"; // Import Toaster from sonner
+import { toast, Toaster } from "sonner";
+
+// Define a type for our trip object for better type safety
+type Trip = {
+  id: string;
+  from: string;
+  to: string;
+  departureTime: string;
+};
 
 const LandingPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -24,15 +41,52 @@ const LandingPage: React.FC = () => {
   const [toLocation, setToLocation] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  // Change the ref to store the createdAt timestamp instead of the ID
-  const lastAlertCreatedAt = useRef<string | null>(null);
+  
+  // State for trips list and displayed alerts
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const displayedAlertIDs = useRef(new Set<string>());
 
-  // Fetch user ID from session API on mount
+  // Fetch user ID on mount
   useEffect(() => {
     fetch("/api/auth/get-session")
       .then(res => res.json())
       .then(data => setUserId(data.user?.id || null));
   }, []);
+
+  // Function to fetch trips
+  const fetchTrips = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`/api/trip?userId=${userId}`);
+      if (!response.ok) throw new Error("Failed to fetch trips");
+      const data = await response.json();
+      setTrips(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not load your trips.");
+    }
+  }, [userId]);
+
+  // Fetch trips when userId is available
+  useEffect(() => {
+    fetchTrips();
+  }, [fetchTrips]);
+
+  // Function to delete an alert
+  const deleteAlert = async (alertId: string) => {
+    try {
+      await fetch('/api/alert', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertId }),
+      });
+      // Remove the alert ID from the displayed set after successful deletion
+      displayedAlertIDs.current.delete(alertId);
+    } catch (err) {
+      console.error("Failed to delete alert:", err);
+      toast.error("Failed to dismiss alert. Please try again.");
+    }
+  };
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,109 +94,101 @@ const LandingPage: React.FC = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const travelDate = formData.get("date") as string;
-    const travelTime = formData.get("time") as string;
+    const departureTime = formData.get("departureTime") as string;
 
-    if (!fromLocation || !toLocation || !travelDate || !travelTime) {
-      setError("Please fill in all required fields.");
+    if (!fromLocation || !toLocation || !departureTime || !userId) {
+      setError("Please fill in all fields.");
       setIsLoading(false);
       return;
     }
 
     try {
-      // This is for the toast for planning the trip
-      toast("Trip planned successfully! An alert will be created at the departure time.");
-
-      const response = await fetch("/api/schedule-trip", {
+      const response = await fetch("/api/trip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           from: fromLocation,
           to: toLocation,
-          date: travelDate,
-          time: travelTime,
+          departureTime,
           userId,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to schedule trip");
-      }
+      if (!response.ok) throw new Error("Failed to schedule trip");
       
-      // Close dialog only after successful submission
+      toast.success("Trip scheduled successfully!");
       setIsDialogOpen(false);
+      fetchTrips();
     } catch (err) {
-      setError("Failed to plan trip. Please try again.");
+      setError("Failed to schedule trip. Please try again.");
       console.error(err);
     } finally {
       setIsLoading(false);
     }
   }
 
-  // Poll for alerts and show toast when a new alert appears
+  // Poll for UNREAD alerts
   useEffect(() => {
-    // We only poll if we have a userId
     if (!userId) return;
 
     const pollForAlerts = async () => {
       try {
-        const lastCreatedAt = lastAlertCreatedAt.current;
-        // Now polling the API for alerts, which are now created directly by the cron job
-        const res = await fetch(`/api/alert?userId=${userId}${lastCreatedAt ? `&lastCreatedAt=${lastCreatedAt}` : ""}`);
-        const alerts = await res.json();
-        
-        // Show a toast for each new alert
-        if (alerts.length > 0) {
-          alerts.forEach((alert: { id: string; message: string; createdAt: string; }) => {
-            // Display the message from the alert record
-            toast(alert.message);
-          });
+        const res = await fetch(`/api/alert?userId=${userId}`);
 
-          // Update the lastAlertCreatedAt to the createdAt of the most recent alert
-          // The API returns alerts sorted by createdAt ASC, so the last one is the latest.
-          const latestAlertCreatedAt = alerts[alerts.length - 1].createdAt;
-          lastAlertCreatedAt.current = latestAlertCreatedAt;
+        if (!res.ok) {
+          // Log the error and exit the function to prevent a crash
+          console.error("Failed to fetch alerts, server responded with an error.");
+          return; 
         }
+
+        const alerts: { id: string; message: string }[] = await res.json();
+        
+        alerts.forEach((alert) => {
+          // Only show the toast if it's not already displayed
+          if (!displayedAlertIDs.current.has(alert.id)) {
+            toast(alert.message, {
+              action: {
+                label: "Remove",
+                onClick: () => deleteAlert(alert.id),
+              },
+              onDismiss: () => deleteAlert(alert.id),
+            });
+            displayedAlertIDs.current.add(alert.id);
+          }
+        });
       } catch (err) {
         console.error("Failed to poll for alerts:", err);
       }
     };
 
-    // Set up the polling interval
-    const interval = setInterval(pollForAlerts, 10000); // poll every 10 seconds
+    const interval = setInterval(pollForAlerts, 10000); // Poll every 10 seconds
+    pollForAlerts(); // Initial check
 
-    // Call the function immediately on mount to check for any alerts
-    // that might have been created before the component mounted.
-    pollForAlerts();
-
-    // Clean up the interval when the component unmounts or userId changes
     return () => clearInterval(interval);
   }, [userId]);
 
   return (
-    <div className="flex flex-col items-center justify-end h-screen p-5 box-border bg-gray-50 overflow-hidden font-sans">
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button className="z-10 cursor-pointer" variant="outline">
-            Plan Your Trip
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => {
-          // Prevent closing when clicking on Google Places Autocomplete dropdown
-          const target = e.target as Element;
-          if (target.closest('.pac-container')) {
-            e.preventDefault();
-          }
-        }}>
-          <DialogHeader>
-            <DialogTitle>Plan Your Safe Trip</DialogTitle>
-            <DialogDescription>
-              Enter your travel details to get safety recommendations and risk assessment
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-6">
-              <div className="grid grid-cols-1 gap-4">
+    <div className="flex h-screen bg-gray-50 font-sans">
+      {/* Map and Button Section */}
+      <main className="flex-1 flex flex-col items-center justify-end p-5 box-border relative">
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-4 z-10">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                Plan Your Trip
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => {
+              const target = e.target as Element;
+              if (target.closest('.pac-container')) e.preventDefault();
+            }}>
+              <DialogHeader>
+                <DialogTitle>Plan Your Trip</DialogTitle>
+                <DialogDescription>
+                  Set your destination and departure time.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 <div className="grid gap-3">
                   <Label htmlFor="from">From</Label>
                   <PlaceAutocomplete value={fromLocation} setValue={setFromLocation} />
@@ -151,51 +197,63 @@ const LandingPage: React.FC = () => {
                   <Label htmlFor="to">To</Label>
                   <PlaceAutocomplete value={toLocation} setValue={setToLocation} />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-4">
                 <div className="grid gap-3">
-                  <Label htmlFor="date">Travel Date</Label>
-                  <Input 
-                    id="date" 
-                    name="date" 
-                    type="date" 
-                    required
-                  />
+                  <Label htmlFor="departureTime">Departure Date and Time</Label>
+                  <Input id="departureTime" name="departureTime" type="datetime-local" required />
                 </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="time">Travel Time</Label>
-                  <Input 
-                    id="time" 
-                    name="time" 
-                    type="time"
-                    step="60" 
-                    required 
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="text-sm text-red-500 text-center">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Planning Trip..." : "Plan Trip"}
+                {error && <div className="text-sm text-red-500 text-center">{error}</div>}
+                <Button type="submit" className="w-full" disabled={isLoading || !userId}>
+                  {isLoading ? "Scheduling..." : "Schedule Trip"}
                 </Button>
-              </div>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-      {/* Add the Toaster component here */}
-      <Toaster />
+              </form>
+            </DialogContent>
+          </Dialog>
 
-      <div className="w-screen h-screen absolute top-0 left-0 z-0">
-        <MapComponent />
-      </div>
+          {/* Sheet for Trips List */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline">
+                View My Trips
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-1/4">
+              <SheetHeader>
+                <SheetTitle>Your Trips</SheetTitle>
+                <SheetDescription>
+                  View your scheduled and upcoming trips here.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="py-4 space-y-4">
+                {trips.length > 0 ? (
+                  trips.map((trip) => (
+                    <div key={trip.id} className="p-4 border rounded-lg shadow-sm">
+                      <p className="font-semibold">From: <span className="font-normal">{trip.from}</span></p>
+                      <p className="font-semibold">To: <span className="font-normal">{trip.to}</span></p>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Departs: {new Date(trip.departureTime).toLocaleString()}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500">You have no upcoming trips.</p>
+                )}
+              </div>
+              <SheetFooter className="mt-auto">
+                <SheetClose asChild>
+                  <Button type="button" variant="secondary">
+                    Close
+                  </Button>
+                </SheetClose>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        <div className="w-full h-full absolute top-0 left-0 z-0">
+          <MapComponent />
+        </div>
+      </main>
+      <Toaster richColors />
     </div>
   );
 };
