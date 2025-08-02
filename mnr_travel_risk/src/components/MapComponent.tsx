@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { GoogleMap } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
 import mapStyles from '@/lib/mapStyles.json';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw } from 'lucide-react';
+import useLocation from '@/hooks/useLocation';
 
 const containerStyle = {
   width: '100%',
@@ -68,10 +69,17 @@ const MapComponent: React.FC<{
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
+  const { location, isLoading } = useLocation();
+
+  useEffect(() => {
+    if (location && !isLoading) {
+      setCenter({ lat: location.coords.latitude, lng: location.coords.longitude, weight: 0 });
+    }
+  }, [location, isLoading]);
   
   const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
   const trafficLayerRef = useRef<google.maps.TrafficLayer | null>(null);
-
+  
   const loadMarkers = useCallback(
     async (ctr: LatLng) => {
       const positions = [ctr, ...generateRandomPositions(15, ctr, 40)];
@@ -196,7 +204,9 @@ const MapComponent: React.FC<{
         onLoad={onLoad}
         onUnmount={onUnmount}
         options={{ mapId: 'DEMO_MAP_ID', styles: mapStyles }}
-      />
+      >
+        {location && <Marker position={{ lat: location.coords.latitude, lng: location.coords.longitude }} />}
+      </GoogleMap>
     </div>
   ) : (
     <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
