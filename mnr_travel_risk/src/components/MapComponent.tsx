@@ -4,60 +4,13 @@ import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import mapStyles from '@/lib/mapStyles.json';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
-import { Button } from '@/components/ui/button';
-import { RefreshCcw } from 'lucide-react';
 import useLocation from '@/hooks/useLocation';
+import { LatLng, RiskMarker } from '@/types/coord';
+import { useRisks } from '@/hooks/useRisks';
 
 const containerStyle = {
   width: '100%',
   height: '100%',
-};
-
-interface LatLng {
-  lat: number;
-  lng: number;
-  weight: number;
-}
-
-interface RiskMarker {
-  position: LatLng;
-  risk: number;
-}
-
-const generateRandomPositions = (
-  count: number,
-  center: LatLng,
-  radiusKm: number
-): LatLng[] => {
-  const earthRadius = 6371; // km
-  const positions: LatLng[] = [];
-  const lat1 = (center.lat * Math.PI) / 180;
-  const lon1 = (center.lng * Math.PI) / 180;
-
-  for (let i = 0; i < count; i++) {
-    const distance = Math.sqrt(Math.random()) * radiusKm;
-    const bearing = Math.random() * 2 * Math.PI;
-    const angularDistance = distance / earthRadius;
-
-    const lat2 = Math.asin(
-      Math.sin(lat1) * Math.cos(angularDistance) +
-        Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing)
-    );
-
-    const lon2 =
-      lon1 +
-      Math.atan2(
-        Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
-        Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2)
-      );
-
-    positions.push({
-      lat: (lat2 * 180) / Math.PI,
-      lng: (lon2 * 180) / Math.PI,
-      weight: Math.random() * 100
-    });
-  }
-  return positions;
 };
 
 const MapComponent: React.FC<{
@@ -65,11 +18,14 @@ const MapComponent: React.FC<{
   map: google.maps.Map | null;
   setMap: (map: google.maps.Map | null) => void;
   directionsRendered?: boolean;
-}> = ({ isLoaded, map, setMap, directionsRendered }) => {
+  handleRefresh?: () => void;
+  heatmapLayer?: google.maps.visualization.HeatmapLayer | null;
+}> = ({ isLoaded, map, setMap, directionsRendered, handleRefresh, heatmapLayer }) => {
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
   const { location, isLoading } = useLocation();
+  const { risks, loading } = useRisks();
 
   useEffect(() => {
     if (location && !isLoading) {
@@ -82,7 +38,7 @@ const MapComponent: React.FC<{
   
   const loadMarkers = useCallback(
     async (ctr: LatLng) => {
-      const positions = [ctr, ...generateRandomPositions(15, ctr, 40)];
+      const positions = risks.map(r => r.position);
       const results: RiskMarker[] = [];
 
       for (const pos of positions) {
@@ -97,9 +53,7 @@ const MapComponent: React.FC<{
       }
 
       setMarkers(results);
-    },
-    []
-  );
+    }, [risks]);
 
   useEffect(() => {
     setIsClient(true);
@@ -123,15 +77,15 @@ const MapComponent: React.FC<{
     setMap(null);
   }, []);
 
-  const handleRefresh = () => {
-    if (map) {
-      const newCenter = map.getCenter()?.toJSON();
-      if (newCenter) {
-        setCenter({ ...newCenter, weight: 0 });
-        loadMarkers({ ...newCenter, weight: 0 });
-      }
-    }
-  };
+  // const handleRefresh = () => {
+  //   if (map) {
+  //     const newCenter = map.getCenter()?.toJSON();
+  //     if (newCenter) {
+  //       setCenter({ ...newCenter, weight: 0 });
+  //       loadMarkers({ ...newCenter, weight: 0 });
+  //     }
+  //   }
+  // };
 
   useEffect(() => {
     if (!map || !window.google?.maps?.visualization || markers.length === 0) return;
@@ -140,29 +94,10 @@ const MapComponent: React.FC<{
       heatmapLayerRef.current.setMap(null);
     }
 
-    const heatmapData = markers.map(({ position, risk }) => ({
-      location: new google.maps.LatLng(position.lat, position.lng),
-      weight: risk
-    }));
-
-    const heatmapLayer = new google.maps.visualization.HeatmapLayer({
-      data: heatmapData,
-      map: map,
-      radius: 20,
-      opacity: 0.6,
-      gradient: [
-        'rgba(0, 255, 0, 0)',
-        'rgba(0, 255, 0, 1)',
-        'rgba(128, 255, 0, 1)',
-        'rgba(255, 255, 0, 1)',
-        'rgba(255, 191, 0, 1)',
-        'rgba(255, 127, 0, 1)',
-        'rgba(255, 63, 0, 1)',
-        'rgba(255, 0, 0, 1)'
-      ]
-    });
-
-    heatmapLayerRef.current = heatmapLayer;
+    if (heatmapLayer) {
+      heatmapLayer.setMap(map);
+      heatmapLayerRef.current = heatmapLayer;
+    }
 
     return () => {
       if (heatmapLayerRef.current) {
@@ -178,7 +113,7 @@ const MapComponent: React.FC<{
     }
   }, [directionsRendered, map]);
 
-  if (!isClient || !isLoaded) {
+  if (!isClient || !isLoaded || loading) {
     return (
       <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
         Loading Map...
@@ -188,14 +123,7 @@ const MapComponent: React.FC<{
 
   return isLoaded ? (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <Button
-        onClick={handleRefresh}
-        variant="outline"
-        className="absolute top-4 left-4 z-10"
-      >
-        <RefreshCcw className="h-4 w-4" />
-        Refresh Risks
-      </Button>
+      
 
       <GoogleMap
         mapContainerStyle={containerStyle}

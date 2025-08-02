@@ -15,6 +15,13 @@ import {
 import PlaceAutocomplete from "@/components/PlaceAutocomplete"
 import { useDirectionsService } from "@/hooks/useDirectionsService";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MapPin } from "lucide-react";
+import { Coord } from "@/types/coord";
+import buffer from "@turf/buffer";
+import { lineString, point } from "@turf/helpers";
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import { useRisks } from "@/hooks/useRisks";
+
 
 interface TripPlanningFormProps {
   isOpen: boolean;
@@ -23,8 +30,20 @@ interface TripPlanningFormProps {
 
   // google maps stuff
   map: google.maps.Map | null;
-  setMap: (map: google.maps.Map | null) => void;
+  heatmapLayer: any | null;
+  setHeatmapLayer: (layer: any | null) => void;
   onDirectionsRendered?: () => void;
+  fromLocation: string;
+  toLocation: string;
+  fromCoordinates: Coord;
+  toCoordinates: Coord;
+  setFromLocation: (location: string) => void;
+  setToLocation: (location: string) => void;
+  setFromCoordinates: (coordinates: { lat: number, lng: number }) => void;
+  setToCoordinates: (coordinates: { lat: number, lng: number }) => void;
+  setShowPlanning: (show: boolean) => void;
+  averageRisk: number;
+  setAverageRisk: (risk: number) => void;
 }
 
 const TripPlanningForm: React.FC<TripPlanningFormProps> = ({ 
@@ -32,18 +51,27 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   onOpenChange, 
   trigger,
   map,
-  setMap,
+  heatmapLayer,
+  setHeatmapLayer,
   onDirectionsRendered,
+  fromLocation,
+  toLocation,
+  fromCoordinates,
+  toCoordinates,
+  setFromLocation,
+  setToLocation,
+  setFromCoordinates,
+  setToCoordinates,
+  setShowPlanning,
+  averageRisk,
+  setAverageRisk,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fromLocation, setFromLocation] = useState("");
-  const [toLocation, setToLocation] = useState("");
-  const [fromCoordinates, setFromCoordinates] = useState({ lat: 0, lng: 0 });
-  const [toCoordinates, setToCoordinates] = useState({ lat: 0, lng: 0 });
   const [leaveNow, setLeaveNow] = useState(true);
   const { getDirections, renderDirections } = useDirectionsService();
-  
+  const { risks, loading } = useRisks();
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -71,12 +99,53 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       // calculate the directions
       const directions = await getDirections(new google.maps.LatLng(fromCoordinates.lat, fromCoordinates.lng), new google.maps.LatLng(toCoordinates.lat, toCoordinates.lng), google.maps.TravelMode.DRIVING);
       renderDirections(directions, map);
+
+      const path = directions.routes[0].overview_path;
+
+      // Convert to Turf LineString (LngLat order!)
+      const turfLine = lineString(path.map(p => [p.lng(), p.lat()]));
+
+      const buffered = buffer(turfLine, 25, { units: "kilometers" });
       
-      // Notify parent component that directions have been rendered
+      // get the risk markers from the map and take the intersection of the buffered polygon and the risk markers
+      const riskMarkers = loading ? [] : risks.filter(r => {
+          const turfPoint = point([r.position.lng, r.position.lat]);
+          return booleanPointInPolygon(turfPoint, buffered as any);
+        });
+
+      setAverageRisk(Number((riskMarkers.reduce((acc, r) => acc + r.risk, 0) / riskMarkers.length).toFixed(2)));
+
+      if (heatmapLayer) {
+        heatmapLayer.setMap(null);
+      }
+
+      const riskPolygon = new google.maps.visualization.HeatmapLayer({
+        data: riskMarkers.map(r => ({
+          location: new google.maps.LatLng(r.position.lat, r.position.lng),
+          weight: r.risk
+        })),
+        map: map,
+        radius: 20,
+        opacity: 0.6,
+        gradient: [
+          'rgba(0, 255, 0, 0)',
+          'rgba(0, 255, 0, 1)',
+          'rgba(128, 255, 0, 1)',
+          'rgba(255, 255, 0, 1)',
+          'rgba(255, 191, 0, 1)',
+          'rgba(255, 127, 0, 1)',
+          'rgba(255, 63, 0, 1)',
+          'rgba(255, 0, 0, 1)'
+        ]
+      });
+      setHeatmapLayer(riskPolygon as any);
+
       onDirectionsRendered?.();
       
       onOpenChange(false);
+      setShowPlanning(true);
     } catch (err) {
+      console.log(err);
       setError("Failed to plan trip. Please try again.");
     } finally {
       setIsLoading(false);
@@ -88,6 +157,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       <DialogTrigger asChild>
         {trigger || (
           <Button className="z-10 cursor-pointer" variant="outline">
+            <MapPin className="h-4 w-4" />
             Plan Your Trip
           </Button>
         )}

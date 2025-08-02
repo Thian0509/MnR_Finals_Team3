@@ -10,17 +10,11 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Coord } from "@/types/coord"
+import { AlertTriangle } from "lucide-react"
 
 interface WeatherReportFormProps {
     className?: string
@@ -96,12 +90,11 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
         }
     }
 
-    const selectedRisk = riskLevels.find(level => level.value === riskLevel)
-
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline">
+                    <AlertTriangle className="h-4 w-4" />
                     Report Hazardous Weather
                 </Button>
             </DialogTrigger>
@@ -128,99 +121,72 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
                         </p>
                     </div>
                 ) : (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Weather Report</CardTitle>
-                            <CardDescription>
-                                Submit a report about current Weather conditions
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                {/* Risk Level Selection */}
-                                <div className="space-y-3">
-                                    <Label>Weather Risk Level</Label>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {riskLevels.map((level) => (
-                                            <div
-                                                key={level.value}
-                                                className={cn(
-                                                    " flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors",
-                                                    riskLevel === level.value
-                                                        ? "border-primary bg-primary/5"
-                                                        : "border-gray-200 hover:bg-gray-50"
-                                                )}
-                                                onClick={() => setRiskLevel(level.value)}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="riskLevel"
-                                                    value={level.value}
-                                                    checked={riskLevel === level.value}
-                                                    onChange={() => setRiskLevel(level.value)}
-                                                    className="sr-only"
-                                                />
-                                                <Badge className={cn("text-white", level.color)}>
-                                                    {level.label}
-                                                </Badge>
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-medium">{level.description}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Description */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="description">Description (Optional)</Label>
-                                    <textarea
-                                        id="description"
-                                        name="description"
-                                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        placeholder="Describe the weather situation"
-                                    />
-                                </div>
-
-                                {/* Current Selection Summary */}
-                                {selectedRisk && (
-                                    <div className="rounded-lg bg-gray-50 p-3">
-                                        <p className="text-sm font-medium text-gray-700">
-                                            Selected Risk Level:
-                                        </p>
-                                        <div className="flex items-center space-x-2 mt-1">
-                                            <Badge className={cn("text-white", selectedRisk.color)}>
-                                                {selectedRisk.label}
-                                            </Badge>
-                                            <span className="text-sm text-gray-600">
-                                                {selectedRisk.description}
-                                            </span>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Risk Level Selection */}
+                        <div className="space-y-3">
+                            <Label>Weather Risk Level</Label>
+                            <div className="grid grid-cols-1 gap-2">
+                                {riskLevels.map((level) => (
+                                    <div
+                                        key={level.value}
+                                        className={cn(
+                                            " flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                                            riskLevel === level.value
+                                                ? "border-primary bg-primary/5"
+                                                : "border-gray-200 hover:bg-gray-50"
+                                        )}
+                                        onClick={() => setRiskLevel(level.value)}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="riskLevel"
+                                            value={level.value}
+                                            checked={riskLevel === level.value}
+                                            onChange={() => setRiskLevel(level.value)}
+                                            className="sr-only"
+                                        />
+                                        <Badge className={cn("text-white", level.color)}>
+                                            {level.label}
+                                        </Badge>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium">{level.description}</p>
                                         </div>
                                     </div>
-                                )}
+                                ))}
+                            </div>
+                        </div>
 
-                                {error && (
-                                    <div className="rounded-md bg-red-50 p-3">
-                                        <p className="text-sm text-red-600">{error}</p>
-                                    </div>
-                                )}
+                        {/* Description */}
+                        <div className="space-y-2">
+                            <Label htmlFor="description">Description (Optional)</Label>
+                            <textarea
+                                id="description"
+                                name="description"
+                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Describe the weather situation"
+                            />
+                        </div>
 
-                                <div className="flex justify-end space-x-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setIsOpen(false)}
-                                        disabled={isLoading}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button type="submit" disabled={isLoading}>
-                                        {isLoading ? "Submitting..." : "Submit Report"}
-                                    </Button>
-                                </div>
-                            </form>
-                        </CardContent>
-                    </Card>
+                        {error && (
+                            <div className="rounded-md bg-red-50 p-3">
+                                <p className="text-sm text-red-600">{error}</p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end space-x-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsOpen(false)}
+                                disabled={isLoading}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={isLoading}>
+                                {isLoading ? "Submitting..." : "Submit Report"}
+                            </Button>
+                        </div>
+                    </form>
                 )}
             </DialogContent>
         </Dialog>

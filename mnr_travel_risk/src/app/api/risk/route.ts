@@ -4,46 +4,16 @@ import prisma from '@/lib/prisma';
 // GET /api/risk - Get all risks with optional filtering
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const riskLevel = searchParams.get('riskLevel');
-    const minRiskLevel = parseInt(searchParams.get('minRiskLevel') || '0');
-    const maxRiskLevel = parseInt(searchParams.get('maxRiskLevel') || '5');
+    // take coordinates and risk level from both risks and risk reports
+    const risks = await prisma.risk.findMany();
+    const riskReports = await prisma.riskReport.findMany();
 
-    const whereClause: any = {};
-    
-    if (riskLevel) {
-      whereClause.riskLevel = parseInt(riskLevel);
-    } else {
-      whereClause.riskLevel = {
-        gte: minRiskLevel,
-        lte: maxRiskLevel
-      };
-    }
+    const allRisks = [...risks, ...riskReports].map(r => ({
+      coordinates: r.coordinates,
+      riskLevel: r.riskLevel
+    }));
 
-    const risks = await prisma.risk.findMany({
-      where: whereClause,
-      take: limit,
-      skip: offset,
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-
-    const total = await prisma.risk.count({
-      where: whereClause
-    });
-
-    return NextResponse.json({
-      risks,
-      pagination: {
-        total,
-        limit,
-        offset,
-        hasMore: offset + limit < total
-      }
-    });
+    return NextResponse.json(allRisks, { status: 200 });
   } catch (error) {
     console.error('Error fetching risks:', error);
     return NextResponse.json(
