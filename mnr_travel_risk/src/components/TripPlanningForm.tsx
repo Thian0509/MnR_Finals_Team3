@@ -15,6 +15,8 @@ import {
 import PlaceAutocomplete from "@/components/PlaceAutocomplete"
 import { useDirectionsService } from "@/hooks/useDirectionsService";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MapPin } from "lucide-react";
+import { Coord } from "@/types/coord";
 
 interface TripPlanningFormProps {
   isOpen: boolean;
@@ -23,8 +25,16 @@ interface TripPlanningFormProps {
 
   // google maps stuff
   map: google.maps.Map | null;
-  setMap: (map: google.maps.Map | null) => void;
   onDirectionsRendered?: () => void;
+  fromLocation: string;
+  toLocation: string;
+  fromCoordinates: Coord;
+  toCoordinates: Coord;
+  setFromLocation: (location: string) => void;
+  setToLocation: (location: string) => void;
+  setFromCoordinates: (coordinates: { lat: number, lng: number }) => void;
+  setToCoordinates: (coordinates: { lat: number, lng: number }) => void;
+  setShowPlanning: (show: boolean) => void;
 }
 
 const TripPlanningForm: React.FC<TripPlanningFormProps> = ({ 
@@ -32,15 +42,19 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   onOpenChange, 
   trigger,
   map,
-  setMap,
   onDirectionsRendered,
+  fromLocation,
+  toLocation,
+  fromCoordinates,
+  toCoordinates,
+  setFromLocation,
+  setToLocation,
+  setFromCoordinates,
+  setToCoordinates,
+  setShowPlanning,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fromLocation, setFromLocation] = useState("");
-  const [toLocation, setToLocation] = useState("");
-  const [fromCoordinates, setFromCoordinates] = useState({ lat: 0, lng: 0 });
-  const [toCoordinates, setToCoordinates] = useState({ lat: 0, lng: 0 });
   const [leaveNow, setLeaveNow] = useState(true);
   const { getDirections, renderDirections } = useDirectionsService();
   
@@ -76,6 +90,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       onDirectionsRendered?.();
       
       onOpenChange(false);
+      setShowPlanning(true);
     } catch (err) {
       setError("Failed to plan trip. Please try again.");
     } finally {
@@ -88,6 +103,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       <DialogTrigger asChild>
         {trigger || (
           <Button className="z-10 cursor-pointer" variant="outline">
+            <MapPin className="h-4 w-4" />
             Plan Your Trip
           </Button>
         )}

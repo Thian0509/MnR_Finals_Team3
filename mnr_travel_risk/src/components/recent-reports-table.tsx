@@ -3,20 +3,18 @@
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerTrigger,
+} from "@/components/ui/drawer"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Clock, MapPin, AlertTriangle } from "lucide-react"
 
 interface Report {
     id: string
@@ -29,7 +27,7 @@ interface Report {
     createdAt: string
 }
 
-export function RecentReportsTable() {
+export function RecentReportsDrawer() {
     const [reports, setReports] = useState<Report[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -45,7 +43,7 @@ export function RecentReportsTable() {
     useEffect(() => {
         async function fetchReports() {
             try {
-                const response = await fetch("/api/report?limit=2")
+                const response = await fetch("/api/report?limit=5")
                 if (!response.ok) {
                     throw new Error("Failed to fetch reports")
                 }
@@ -73,6 +71,7 @@ export function RecentReportsTable() {
     const formatLocation = (coordinates: { lat: number; lng: number }) => {
         return `${coordinates.lat.toFixed(4)}, ${coordinates.lng.toFixed(4)}`
     }
+
     const formatTime = (dateString: string) => {
         const date = new Date(dateString)
         const now = new Date()
@@ -87,91 +86,102 @@ export function RecentReportsTable() {
         return `${diffDays}d ago`
     }
 
-    if (isLoading) {
-        return (
-            <Card className="w-full max-w-2xl">
-                <CardHeader>
-                    <CardTitle>Recent Reports</CardTitle>
-                    <CardDescription>Loading latest community reports...</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex justify-center items-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+    const renderContent = () => {
+        if (isLoading) {
+            return (
+                <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    <p className="text-sm text-gray-500">Loading reports...</p>
+                </div>
+            )
+        }
 
-    if (error) {
-        return (
-            <Card className="w-full max-w-2xl">
-                <CardHeader>
-                    <CardTitle>Recent Reports</CardTitle>
-                    <CardDescription className="text-red-500">
-                        {error}
-                    </CardDescription>
-                </CardHeader>
-            </Card>
-        )
-    }
+        if (error) {
+            return (
+                <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                    <AlertTriangle className="h-8 w-8 text-red-500" />
+                    <p className="text-sm text-red-500 text-center">{error}</p>
+                </div>
+            )
+        }
 
-    if (reports.length === 0) {
-        return (
-            <Card className="w-full max-w-2xl">
-                <CardHeader>
-                    <CardTitle>Recent Reports</CardTitle>
-                    <CardDescription>No reports available yet</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-center text-gray-500 py-8">
+        if (reports.length === 0) {
+            return (
+                <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                    <MapPin className="h-8 w-8 text-gray-400" />
+                    <p className="text-sm text-gray-500 text-center">
+                        No reports available yet
+                    </p>
+                    <p className="text-xs text-gray-400 text-center">
                         Be the first to report traffic conditions in your area!
                     </p>
-                </CardContent>
-            </Card>
+                </div>
+            )
+        }
+
+        return (
+            <div className="grid grid-cols-4 gap-4 px-4">
+                {reports.map((report) => (
+                    <Card key={report.id} className="p-4">
+                        <CardContent className="p-0 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                    {getRiskBadge(report.riskLevel)}
+                                    <span className="text-xs text-gray-500">
+                                        {formatTime(report.createdAt)}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <div className="flex items-center space-x-2">
+                                    <MapPin className="h-4 w-4 text-gray-400" />
+                                    <span className="text-sm font-mono">
+                                        {formatLocation(report.coordinates)}
+                                    </span>
+                                </div>
+                                
+                                {report.riskDescription && (
+                                    <div className="text-sm text-gray-700">
+                                        {report.riskDescription}
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
         )
     }
 
     return (
-        <Card className="w-full max-w-2xl p-2">
-            {/* <CardHeader>
-                <CardTitle>Recent Reports</CardTitle>
-                <CardDescription>
-                    Latest community reports from the past 24 hours
-                </CardDescription>
-            </CardHeader> */}
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Risk Level</TableHead>
-                            <TableHead>Location</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>Time</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {reports.map((report) => (
-                            <TableRow key={report.id}>
-                                <TableCell>
-                                    {getRiskBadge(report.riskLevel)}
-                                </TableCell>
-                                <TableCell className="font-mono text-sm">
-                                    {formatLocation(report.coordinates)}
-                                </TableCell>
-                                <TableCell> 
-                                    <div className="max-w-48 truncate">
-                                        {report.riskDescription || "No description"}
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-gray-500">
-                                    {formatTime(report.createdAt)}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+        <Drawer>
+            <DrawerTrigger asChild>
+                <Button variant="outline">
+                    <Clock className="h-4 w-4" />
+                    Recent Reports
+                </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+                <div className="">
+                    <DrawerHeader>
+                        <DrawerTitle>Recent Reports</DrawerTitle>
+                        <DrawerDescription>
+                            Latest community reports from the past 24 hours
+                        </DrawerDescription>
+                    </DrawerHeader>
+                    
+                    <div className="w-full">
+                        {renderContent()}
+                    </div>
+                    
+                    <DrawerFooter>
+                        <DrawerClose asChild>
+                            <Button variant="outline">Close</Button>
+                        </DrawerClose>
+                    </DrawerFooter>
+                </div>
+            </DrawerContent>
+        </Drawer>
     )
 }

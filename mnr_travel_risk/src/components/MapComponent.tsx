@@ -4,8 +4,6 @@ import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import mapStyles from '@/lib/mapStyles.json';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
-import { Button } from '@/components/ui/button';
-import { RefreshCcw } from 'lucide-react';
 import useLocation from '@/hooks/useLocation';
 
 const containerStyle = {
@@ -65,7 +63,8 @@ const MapComponent: React.FC<{
   map: google.maps.Map | null;
   setMap: (map: google.maps.Map | null) => void;
   directionsRendered?: boolean;
-}> = ({ isLoaded, map, setMap, directionsRendered }) => {
+  handleRefresh?: () => void;
+}> = ({ isLoaded, map, setMap, directionsRendered, handleRefresh }) => {
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
@@ -123,15 +122,15 @@ const MapComponent: React.FC<{
     setMap(null);
   }, []);
 
-  const handleRefresh = () => {
-    if (map) {
-      const newCenter = map.getCenter()?.toJSON();
-      if (newCenter) {
-        setCenter({ ...newCenter, weight: 0 });
-        loadMarkers({ ...newCenter, weight: 0 });
-      }
-    }
-  };
+  // const handleRefresh = () => {
+  //   if (map) {
+  //     const newCenter = map.getCenter()?.toJSON();
+  //     if (newCenter) {
+  //       setCenter({ ...newCenter, weight: 0 });
+  //       loadMarkers({ ...newCenter, weight: 0 });
+  //     }
+  //   }
+  // };
 
   useEffect(() => {
     if (!map || !window.google?.maps?.visualization || markers.length === 0) return;
@@ -188,14 +187,7 @@ const MapComponent: React.FC<{
 
   return isLoaded ? (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <Button
-        onClick={handleRefresh}
-        variant="outline"
-        className="absolute top-4 left-4 z-10"
-      >
-        <RefreshCcw className="h-4 w-4" />
-        Refresh Risks
-      </Button>
+      
 
       <GoogleMap
         mapContainerStyle={containerStyle}
