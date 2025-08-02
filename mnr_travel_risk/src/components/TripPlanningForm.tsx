@@ -23,7 +23,6 @@ import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { useRisks } from "@/hooks/useRisks";
 import { useReports } from "@/hooks/useReports";
 
-
 interface TripPlanningFormProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,11 +44,12 @@ interface TripPlanningFormProps {
   setShowPlanning: (show: boolean) => void;
   averageRisk: number;
   setAverageRisk: (risk: number) => void;
+  setAiDescription: (txt: string) => void;
 }
 
-const TripPlanningForm: React.FC<TripPlanningFormProps> = ({ 
-  isOpen, 
-  onOpenChange, 
+const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
+  isOpen,
+  onOpenChange,
   trigger,
   map,
   heatmapLayer,
@@ -66,6 +66,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   setShowPlanning,
   averageRisk,
   setAverageRisk,
+  setAiDescription
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +79,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-    
+
     const formData = new FormData(e.currentTarget);
     let travelDate = formData.get("date") as string;
     let travelTime = formData.get("time") as string;
@@ -112,7 +113,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       console.log(buffered);
       console.log(risks);
       console.log(allReports);
-      
+
       const allRiskMarkers = [...risks, ...allReports];
 
       console.log(allRiskMarkers);
@@ -121,7 +122,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
         if ('position' in r) {
           const turfPoint = point([r.position.lng, r.position.lat]);
           return booleanPointInPolygon(turfPoint, buffered as any);
-        } 
+        }
         else if ('coordinates' in r) {
           const turfPoint = point([(r.coordinates as { lng: number }).lng, (r.coordinates as { lat: number }).lat]);
           return booleanPointInPolygon(turfPoint, buffered as any);
@@ -150,7 +151,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       const riskPolygon = new google.maps.visualization.HeatmapLayer({
         data: riskMarkers.map(r => ({
           location: new google.maps.LatLng(
-            'position' in r ? r.position.lat : (r.coordinates as { lat: number }).lat, 
+            'position' in r ? r.position.lat : (r.coordinates as { lat: number }).lat,
             'position' in r ? r.position.lng : (r.coordinates as { lng: number }).lng
           ),
           weight: 'risk' in r ? r.risk : 75
@@ -172,6 +173,22 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
       setHeatmapLayer(riskPolygon as any);
 
       onDirectionsRendered?.();
+      
+      try {
+        const aiResponse = await fetch(`/api/ai?from=${encodeURIComponent(fromLocation)}&to=${encodeURIComponent(toLocation)}&weather=sunny`);
+        
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          setAiDescription(aiData.description);
+          console.log("AI Description:", aiData.description);
+        } else {
+          console.error("Failed to fetch AI description");
+          setAiDescription("Unable to generate travel description at this time.");
+        }
+      } catch (aiError) {
+        console.error("Error fetching AI description:", aiError);
+        setAiDescription("Unable to generate travel description at this time.");
+      }
       
       onOpenChange(false);
       setShowPlanning(true);
@@ -218,7 +235,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
                 <PlaceAutocomplete value={toLocation} setValue={setToLocation} coordinates={toCoordinates} setCoordinates={setToCoordinates} />
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="leaveNow"
@@ -230,14 +247,14 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
                 Leave now
               </Label>
             </div>
-            
+
             {!leaveNow && <div className="grid grid-cols-1 gap-4">
               <div className="grid gap-3">
                 <Label htmlFor="date">Travel Date</Label>
-                <Input 
-                  id="date" 
-                  name="date" 
-                  type="date" 
+                <Input
+                  id="date"
+                  name="date"
+                  type="date"
                   required={!leaveNow}
                   disabled={leaveNow}
                   className={leaveNow ? "opacity-50 cursor-not-allowed" : ""}
@@ -245,11 +262,11 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
               </div>
               <div className="grid gap-3">
                 <Label htmlFor="time">Travel Time</Label>
-                <Input 
-                  id="time" 
-                  name="time" 
+                <Input
+                  id="time"
+                  name="time"
                   type="time"
-                  step="60" 
+                  step="60"
                   required={!leaveNow}
                   disabled={leaveNow}
                   className={leaveNow ? "opacity-50 cursor-not-allowed" : ""}
@@ -275,4 +292,4 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   );
 };
 
-export default TripPlanningForm; 
+export default TripPlanningForm;

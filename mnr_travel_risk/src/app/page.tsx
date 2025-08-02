@@ -54,6 +54,7 @@ function App() {
   const { location, error, isLoading, requestLocation, permissionStatus } = useLocation();
   const router = useRouter();
   const [fromLocation, setFromLocation] = useState<string>("");
+  const [aiDescription, setAiDescription] = useState<string>("");
   const [toLocation, setToLocation] = useState<string>("");
   const [fromCoordinates, setFromCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
   const [toCoordinates, setToCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
@@ -238,7 +239,7 @@ function App() {
                     <span>{truncate(toLocation, 20)}</span>
                   </div>
                   <div className="flex items-center">
-                    <Sparkles className="h-4 w-4 mr-2 text-indigo-500" /> Plan your trip with the map and the tools below.
+                    <Sparkles className="h-4 w-4 mr-2 text-indigo-500" /> {aiDescription}
                   </div>
                 </div>
                 <div className="flex gap-3 items-center">
@@ -272,6 +273,7 @@ function App() {
               setShowPlanning={setShowPlanning}
               averageRisk={averageRisk}
               setAverageRisk={setAverageRisk}
+              setAiDescription={setAiDescription}
             />
             <RoutineDialog />
             <WeatherReportForm currentLocation={location ? { lat: location.coords.latitude, lng: location.coords.longitude } : undefined} />
