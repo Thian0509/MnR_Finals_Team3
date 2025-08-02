@@ -11,27 +11,35 @@ const containerStyle = {
   height: '100%',
 };
 
-const center = { lat: -25.853952, lng:  28.19358 };
+interface LatLng {
+  lat: number;
+  lng: number;
+}
 
 interface RiskMarker {
-  position: { lat: number; lng: number };
+  position: LatLng;
   risk: number;
 }
 
-const generateRandomPositions = (count: number): { lat: number; lng: number }[] => {
-  const earthRadius = 6371;
-  const positions: { lat: number; lng: number }[] = [];
+// Generate `count` random positions within `radiusKm` of `center`
+const generateRandomPositions = (
+  count: number,
+  center: LatLng,
+  radiusKm: number
+): LatLng[] => {
+  const earthRadius = 6371; // km
+  const positions: LatLng[] = [];
   const lat1 = (center.lat * Math.PI) / 180;
   const lon1 = (center.lng * Math.PI) / 180;
 
   for (let i = 0; i < count; i++) {
-    const distance = Math.sqrt(Math.random()) * 40; // random within 20km circle
+    const distance = Math.sqrt(Math.random()) * radiusKm;
     const bearing = Math.random() * 2 * Math.PI;
     const angularDistance = distance / earthRadius;
 
     const lat2 = Math.asin(
       Math.sin(lat1) * Math.cos(angularDistance) +
-      Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing)
+        Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing)
     );
 
     const lon2 =
@@ -52,30 +60,13 @@ const generateRandomPositions = (count: number): { lat: number; lng: number }[] 
 const MapComponent: React.FC = () => {
   const [isClient, setIsClient] = useState(false);
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
-    libraries: ['marker'],
-  });
-
-  const onLoad = useCallback((mapInstance: google.maps.Map) => {
-    setMap(mapInstance);
-  }, []);
-
-  const onUnmount = useCallback(() => {
-    setMap(null);
-  }, []);
-
-  // Fetch risk for center + 5 random positions
-  useEffect(() => {
-    const loadMarkers = async () => {
-      const positions = [center, ...generateRandomPositions(10)];
+  // Markers fetch function
+  const loadMarkers = useCallback(
+    async (ctr: LatLng) => {
+      const positions = [ctr, ...generateRandomPositions(15, ctr, 40)];
       const results: RiskMarker[] = [];
 
       for (const pos of positions) {
@@ -90,12 +81,42 @@ const MapComponent: React.FC = () => {
       }
 
       setMarkers(results);
-    };
+    },
+    []
+  );
 
-    loadMarkers();
+  useEffect(() => {
+    setIsClient(true);
   }, []);
 
-  // Render AdvancedMarkerElement for each
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
+    libraries: ['marker'],
+  });
+
+  const onLoad = useCallback((mapInstance: google.maps.Map) => {
+    setMap(mapInstance);
+    // Initial marker load
+    loadMarkers(center);
+  }, [loadMarkers, center]);
+
+  const onUnmount = useCallback(() => {
+    setMap(null);
+  }, []);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    if (map) {
+      const newCenter = map.getCenter()?.toJSON();
+      if (newCenter) {
+        setCenter(newCenter);
+        loadMarkers(newCenter);
+      }
+    }
+  };
+
+  // Render markers when they change
   useEffect(() => {
     if (!map || !window.google?.maps?.marker) return;
 
@@ -106,49 +127,69 @@ const MapComponent: React.FC = () => {
       const root = createRoot(container);
       if (risk <= 88.5){
         root.render(<Badge className="bg-emerald-900  " variant="destructive">{risk.toPrecision(4)}</Badge>);
-        
-        
       } else if (risk <= 90) {
         root.render(<Badge className="bg-amber-400" variant="destructive">{risk.toPrecision(4)}</Badge>);
       } else {
         root.render(<Badge className="bg-orange-800" variant="destructive">{risk.toPrecision(4)}</Badge>);
-
       }
-      const advancedMarker = new window.google.maps.marker.AdvancedMarkerElement({
+
+      const marker = new window.google.maps.marker.AdvancedMarkerElement({
         map,
         position,
         content: container,
       });
-      markerElements.push(advancedMarker);
+      markerElements.push(marker);
     });
 
-    // Cleanup on unmount or markers change
-    return () => {
-      markerElements.forEach(m => { m.map = null; });
-    };
+    return () => markerElements.forEach(m => (m.map = null));
   }, [map, markers]);
 
   if (!isClient || !isLoaded) {
     return (
-      <div style={{
-        width: '100%', height: '100%', display: 'flex',
-        justifyContent: 'center', alignItems: 'center',
-        backgroundColor: '#f5f5f5', color: '#666'
-      }}>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#f5f5f5',
+          color: '#666',
+        }}
+      >
         Loading Map...
       </div>
     );
   }
 
   return (
-    <GoogleMap
-      mapContainerStyle={containerStyle}
-      center={center}
-      zoom={10}
-      onLoad={onLoad}
-      onUnmount={onUnmount}
-      options={{ mapId: 'DEMO_MAP_ID' }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <button
+        onClick={handleRefresh}
+        style={{
+          position: 'absolute',
+          top: 10,
+          left: 10,
+          zIndex: 5,
+          padding: '8px 12px',
+          background: '#fff',
+          border: '1px solid #ccc',
+          borderRadius: '4px',
+          cursor: 'pointer',
+        }}
+      >
+        Refresh Risks
+      </button>
+
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={center}
+        zoom={10}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={{ mapId: 'DEMO_MAP_ID' }}
+      />
+    </div>
   );
 };
 
