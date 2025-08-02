@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import PlaceAutocomplete from "@/components/PlaceAutocomplete"
 import { useDirectionsService } from "@/hooks/useDirectionsService";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TripPlanningFormProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   const [toLocation, setToLocation] = useState("");
   const [fromCoordinates, setFromCoordinates] = useState({ lat: 0, lng: 0 });
   const [toCoordinates, setToCoordinates] = useState({ lat: 0, lng: 0 });
-  const [leaveNow, setLeaveNow] = useState(false);
+  const [leaveNow, setLeaveNow] = useState(true);
   const { getDirections, renderDirections } = useDirectionsService();
   
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -118,19 +119,18 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
             </div>
             
             <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 id="leaveNow"
                 checked={leaveNow}
-                onChange={(e) => setLeaveNow(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                onCheckedChange={(checked) => setLeaveNow(checked === "indeterminate" ? false : checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
               <Label htmlFor="leaveNow" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Leave now
               </Label>
             </div>
             
-            <div className="grid grid-cols-1 gap-4">
+            {!leaveNow && <div className="grid grid-cols-1 gap-4">
               <div className="grid gap-3">
                 <Label htmlFor="date">Travel Date</Label>
                 <Input 
@@ -154,7 +154,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
                   className={leaveNow ? "opacity-50 cursor-not-allowed" : ""}
                 />
               </div>
-            </div>
+            </div>}
 
             {error && (
               <div className="text-sm text-red-500 text-center">

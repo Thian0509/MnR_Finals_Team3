@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { GoogleMap } from '@react-google-maps/api';
 import mapStyles from '@/lib/mapStyles.json';
-import { createRoot } from 'react-dom/client';
-import { Badge } from '@/components/ui/badge';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw } from 'lucide-react';
@@ -17,6 +15,7 @@ const containerStyle = {
 interface LatLng {
   lat: number;
   lng: number;
+  weight: number;
 }
 
 interface RiskMarker {
@@ -24,7 +23,6 @@ interface RiskMarker {
   risk: number;
 }
 
-// Generate `count` random positions within `radiusKm` of `center`
 const generateRandomPositions = (
   count: number,
   center: LatLng,
@@ -55,6 +53,7 @@ const generateRandomPositions = (
     positions.push({
       lat: (lat2 * 180) / Math.PI,
       lng: (lon2 * 180) / Math.PI,
+      weight: Math.random() * 100
     });
   }
   return positions;
@@ -67,10 +66,10 @@ const MapComponent: React.FC<{
   directionsRendered?: boolean;
 }> = ({ isLoaded, map, setMap, directionsRendered }) => {
   const [isClient, setIsClient] = useState(false);
-  const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358 });
+  const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
+  const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
 
-  // Markers fetch function
   const loadMarkers = useCallback(
     async (ctr: LatLng) => {
       const positions = [ctr, ...generateRandomPositions(15, ctr, 40)];
@@ -104,7 +103,6 @@ const MapComponent: React.FC<{
       zoomControl: false,
     });
     setMap(mapInstance);
-    // Initial marker load
     loadMarkers(center);
   }, [loadMarkers, center]);
 
@@ -112,50 +110,57 @@ const MapComponent: React.FC<{
     setMap(null);
   }, []);
 
-  // Refresh handler
   const handleRefresh = () => {
     if (map) {
       const newCenter = map.getCenter()?.toJSON();
       if (newCenter) {
-        setCenter(newCenter);
-        loadMarkers(newCenter);
+        setCenter({ ...newCenter, weight: 0 });
+        loadMarkers({ ...newCenter, weight: 0 });
       }
     }
   };
 
-  // Render markers when they change
   useEffect(() => {
-    if (!map || !window.google?.maps?.marker) return;
+    if (!map || !window.google?.maps?.visualization || markers.length === 0) return;
 
-    const markerElements: google.maps.marker.AdvancedMarkerElement[] = [];
+    if (heatmapLayerRef.current) {
+      heatmapLayerRef.current.setMap(null);
+    }
 
-    markers.forEach(({ position, risk }) => {
-      const container = document.createElement('div');
-      const root = createRoot(container);
-      if (risk <= 88.5){
-        root.render(<Badge className="bg-emerald-900  " variant="destructive">{risk.toPrecision(4)}</Badge>);
-      } else if (risk <= 90) {
-        root.render(<Badge className="bg-amber-400" variant="destructive">{risk.toPrecision(4)}</Badge>);
-      } else {
-        root.render(<Badge className="bg-orange-800" variant="destructive">{risk.toPrecision(4)}</Badge>);
-      }
+    const heatmapData = markers.map(({ position, risk }) => ({
+      location: new google.maps.LatLng(position.lat, position.lng),
+      weight: risk
+    }));
 
-      const marker = new window.google.maps.marker.AdvancedMarkerElement({
-        map,
-        position,
-        content: container,
-      });
-      markerElements.push(marker);
+    const heatmapLayer = new google.maps.visualization.HeatmapLayer({
+      data: heatmapData,
+      map: map,
+      radius: 10,
+      opacity: 0.6,
+      gradient: [
+        'rgba(0, 255, 0, 0)',
+        'rgba(0, 255, 0, 1)',
+        'rgba(128, 255, 0, 1)',
+        'rgba(255, 255, 0, 1)',
+        'rgba(255, 191, 0, 1)',
+        'rgba(255, 127, 0, 1)',
+        'rgba(255, 63, 0, 1)',
+        'rgba(255, 0, 0, 1)'
+      ]
     });
 
-    return () => markerElements.forEach(m => (m.map = null));
+    heatmapLayerRef.current = heatmapLayer;
+
+    return () => {
+      if (heatmapLayerRef.current) {
+        heatmapLayerRef.current.setMap(null);
+        heatmapLayerRef.current = null;
+      }
+    };
   }, [map, markers]);
 
-  // Handle directions rendered
   useEffect(() => {
     if (directionsRendered && map) {
-      // Force a map refresh or update when directions are rendered
-      // This ensures the map properly displays the directions
       map.setZoom(map.getZoom() || 10);
     }
   }, [directionsRendered, map]);
