@@ -26,6 +26,26 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { truncate } from "@/lib/trunc";
 import { useRisks } from "@/hooks/useRisks";
 import RoutineDialog from "@/components/RoutineDialog";
+import { toast, Toaster } from "sonner";
+
+type Coordinates = {
+  address: string;
+};
+
+type Routine = {
+  id: string;
+  userId: string;
+  name: string;
+  startLocation: string;
+  startCoordinates: Coordinates;
+  endLocation: string;
+  endCoordinates: Coordinates;
+  startTime: string; // format: "HH:mm"
+  repeatDays: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
+  createdAt: string; // ISO 8601 timestamp
+  updatedAt: string; // ISO 8601 timestamp
+};
+
 
 function App() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -44,16 +64,26 @@ function App() {
 
   // Schedule checker for routine notifications
   useEffect(() => {
-    const checkRoutines = () => {
-      const routines: any[] = []
+    const checkRoutines = async () => {
+      const resp = await fetch("/api/routine")
+      const routines: Routine[] = (await resp.json()).routines
+      console.log("🚀 ~ checkRoutines ~ routines:", routines)
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
-      
-      routines.forEach((routine: any) => {
-        if (routine.time === currentTime && routine.days.includes(currentDay)) {
+      const dayArr = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
+      const currentDay = dayArr[now.getDay()];
+
+      routines.forEach((routine: Routine) => {
+        if (routine.startTime === currentTime && routine.repeatDays.includes(currentDay)) {
           // Show toast notification
           if ('Notification' in window && Notification.permission === 'granted') {
+            toast(`Routine Reminder: ${routine.name || "Travel"}`, {
+              description: `It's time to travel from ${routine.startLocation} to ${routine.endLocation}.`,
+              action: {
+                label: "Got it!",
+                onClick: () => console.log("Routine reminder acknowledged"),
+              },
+            })
             new Notification('Travel Routine Reminder', {
               body: `Time to travel from ${routine.startLocation} to ${routine.endLocation}`,
               icon: '/favicon.ico'
@@ -65,10 +95,9 @@ function App() {
         }
       });
     };
+    checkRoutines()
+    const interval = setInterval(checkRoutines, 50000);
 
-    // Check every minute
-    const interval = setInterval(checkRoutines, 60000);
-    
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -106,7 +135,7 @@ function App() {
     setHeatmapLayer(heatmapLayer);
     setAverageRisk(risks.reduce((acc, r) => acc + r.risk, 0) / risks.length);
   }, [map, risks]);
-  
+
   const handleDirectionsRendered = () => {
     setDirectionsRendered(true);
     setTimeout(() => setDirectionsRendered(false), 100);
@@ -131,7 +160,7 @@ function App() {
 
   if (location === null && permissionStatus === 'prompt') {
     return (
-      <Dialog open={true} onOpenChange={() => {}}>
+      <Dialog open={true} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Location Access Required</DialogTitle>
@@ -140,7 +169,7 @@ function App() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
+            <Button
               onClick={requestLocation}
               className="w-full"
               disabled={isLoading}
@@ -155,19 +184,20 @@ function App() {
 
   return (
     <div className="flex flex-col items-center justify-end h-screen p-5 box-border bg-gray-50 overflow-hidden font-sans">
-      <Dialog open={error !== null} onOpenChange={() => {}}>
+      <Toaster />
+      <Dialog open={error !== null} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-red-600">Location Access Error</DialogTitle>
             <DialogDescription>
-              {error === "User denied geolocation" 
+              {error === "User denied geolocation"
                 ? "Location access was denied. Please enable location access in your browser settings."
                 : "Error getting location. Please try again later."
               }
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
+            <Button
               onClick={requestLocation}
               className="w-full"
               disabled={isLoading}
@@ -224,7 +254,7 @@ function App() {
             </CardContent>
           </Card>}
           <div className="flex gap-3">
-            <TripPlanningForm 
+            <TripPlanningForm
               isOpen={isDialogOpen}
               onOpenChange={setIsDialogOpen}
               map={map}
@@ -243,7 +273,7 @@ function App() {
               averageRisk={averageRisk}
               setAverageRisk={setAverageRisk}
             />
-            <RoutineDialog/>
+            <RoutineDialog />
             <WeatherReportForm currentLocation={location ? { lat: location.coords.latitude, lng: location.coords.longitude } : undefined} />
             <RecentReportsDrawer />
             <Button onClick={handleLogOut} variant="outline">

@@ -10,14 +10,14 @@ export async function GET(request: NextRequest) {
         const offset = parseInt(searchParams.get('offset') || '0');
 
         if (!userId) {
-            return NextResponse.json(
-                { error: 'User ID is required' },
-                { status: 400 }
-            );
+            // return NextResponse.json(
+            //     { error: 'User ID is required' },
+            //     { status: 400 }
+            // );
         }
 
         const routines = await prisma.routine.findMany({
-            where: { userId },
+            // where: { userId },
             take: limit,
             skip: offset,
             orderBy: {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         });
 
         const total = await prisma.routine.count({
-            where: { userId }
+            // where: { userId }
         });
 
         return NextResponse.json({
