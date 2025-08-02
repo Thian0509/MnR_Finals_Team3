@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useCallback, useState, useEffect } from 'react';
+import { GoogleMap } from '@react-google-maps/api';
+import { useGoogleMaps } from '@/hooks/useGoogleMaps';
+import mapStyles from '@/lib/mapStyles.json';
 import { createRoot } from 'react-dom/client';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { Badge } from '@/components/ui/badge';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 
@@ -59,6 +61,7 @@ const generateRandomPositions = (
 
 const MapComponent: React.FC = () => {
   const [isClient, setIsClient] = useState(false);
+  const { isLoaded } = useGoogleMaps();
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
@@ -89,16 +92,17 @@ const MapComponent: React.FC = () => {
     setIsClient(true);
   }, []);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
-    libraries: ['marker'],
-  });
-
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance);
     // Initial marker load
     loadMarkers(center);
+    map.setOptions({
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      zoomControl: false,
+      styles: mapStyles,
+    });
   }, [loadMarkers, center]);
 
   const onUnmount = useCallback(() => {
@@ -146,23 +150,13 @@ const MapComponent: React.FC = () => {
 
   if (!isClient || !isLoaded) {
     return (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#f5f5f5',
-          color: '#666',
-        }}
-      >
+      <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
         Loading Map...
       </div>
     );
   }
 
-  return (
+  return isLoaded ? (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <button
         onClick={handleRefresh}
@@ -189,6 +183,10 @@ const MapComponent: React.FC = () => {
         onUnmount={onUnmount}
         options={{ mapId: 'DEMO_MAP_ID' }}
       />
+    </div>
+  ) : (
+    <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
+      Loading Map...
     </div>
   );
 };
