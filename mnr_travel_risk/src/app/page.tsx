@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { truncate } from "@/lib/trunc";
 import { useRisks } from "@/hooks/useRisks";
-
+import RoutineDialog from "@/components/RoutineDialog";
 
 function App() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -41,6 +41,41 @@ function App() {
   const { risks } = useRisks();
   const [heatmapLayer, setHeatmapLayer] = useState<any | null>(null);
   const [averageRisk, setAverageRisk] = useState(0);
+
+  // Schedule checker for routine notifications
+  useEffect(() => {
+    const checkRoutines = () => {
+      const routines = 
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+      
+      routines.forEach((routine: any) => {
+        if (routine.time === currentTime && routine.days.includes(currentDay)) {
+          // Show toast notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Travel Routine Reminder', {
+              body: `Time to travel from ${routine.startLocation} to ${routine.endLocation}`,
+              icon: '/favicon.ico'
+            });
+          } else {
+            // Fallback to console or custom toast
+            console.log(`Routine reminder: ${routine.startLocation} → ${routine.endLocation}`);
+          }
+        }
+      });
+    };
+
+    // Check every minute
+    const interval = setInterval(checkRoutines, 60000);
+    
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!map) return;
@@ -208,7 +243,7 @@ function App() {
               averageRisk={averageRisk}
               setAverageRisk={setAverageRisk}
             />
-
+            <RoutineDialog/>
             <WeatherReportForm currentLocation={location ? { lat: location.coords.latitude, lng: location.coords.longitude } : undefined} />
             <RecentReportsDrawer />
             <Button onClick={handleLogOut} variant="outline">

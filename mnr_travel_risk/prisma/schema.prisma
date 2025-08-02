@@ -15,7 +15,7 @@ datasource db {
 }
 
 model User {
-  id            String    @id
+  id            String       @id
   name          String
   email         String
   emailVerified Boolean
@@ -26,6 +26,7 @@ model User {
   accounts      Account[]
   profile       UserProfile?
   trips         Trip[]
+  Routine       Routine[]
 
   @@unique([email])
   @@map("user")
@@ -95,12 +96,12 @@ model Trip {
   updatedAt DateTime @updatedAt
 
   startCoordinates Json
-  endCoordinates Json
+  endCoordinates   Json
 
-  travelTime  Int
+  travelTime     Int
   travelDistance Int
-  travelMode String
-  travelType String
+  travelMode     String
+  travelType     String
 
   routineAlerts RoutineAlert[]
 
@@ -108,35 +109,45 @@ model Trip {
 }
 
 model Risk {
-  id        String   @id
-  coordinates Json
-  riskLevel Int
+  id              String   @id
+  coordinates     Json
+  riskLevel       Int
   riskDescription String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("risk")
 }
 
 model RiskReport {
-  id        String   @id
-  coordinates Json
-  riskLevel Int
+  id              String   @id
+  coordinates     Json
+  riskLevel       Int
   riskDescription String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("risk_report")
 }
 
 model RoutineAlert {
-  id        String   @id
-  tripId    String
-  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  id          String   @id
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   arrivalTime DateTime
-  cronString String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  cronString  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("routine_alert")
+}
+
+model Routine {
+  id            String   @id
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startLocation String
+  endLocation   String
+  startTime     DateTime
+  repeatDays    String[]
 }
