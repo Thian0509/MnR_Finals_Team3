@@ -181,7 +181,7 @@ function App() {
                     <p className="text-xs">minutes</p>
                   </div>
                   <div className="flex items-center justify-end flex-col">
-                    <h1 className="text-3xl font-bold text-red-500">{averageRisk.toFixed(1)}%</h1>
+                    <h1 className="text-3xl font-bold text-red-500">{averageRisk ? averageRisk.toFixed(1) : 0}%</h1>
                     <p className="text-xs">Travel Risk</p>
                   </div>
                 </div>

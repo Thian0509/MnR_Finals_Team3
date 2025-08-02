@@ -6,14 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     // take coordinates and risk level from both risks and risk reports
     const risks = await prisma.risk.findMany();
-    const riskReports = await prisma.riskReport.findMany();
 
-    const allRisks = [...risks, ...riskReports].map(r => ({
-      coordinates: r.coordinates,
-      riskLevel: r.riskLevel
-    }));
-
-    return NextResponse.json(allRisks, { status: 200 });
+    return NextResponse.json(risks, { status: 200 });
   } catch (error) {
     console.error('Error fetching risks:', error);
     return NextResponse.json(
