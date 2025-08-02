@@ -130,6 +130,8 @@ model RiskReport {
   @@map("risk_report")
 }
 
+// ...existing code...
+
 model RoutineAlert {
   id          String   @id
   tripId      String
@@ -143,11 +145,18 @@ model RoutineAlert {
 }
 
 model Routine {
-  id            String   @id
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  startLocation String
-  endLocation   String
-  startTime     DateTime
-  repeatDays    String[]
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  startLocation   String
+  startCoordinates Json
+  endLocation     String
+  endCoordinates  Json
+  startTime       String   // Format: "HH:MM"
+  repeatDays      String[] // Array of days: ["monday", "tuesday", etc.]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("routine")
 }

@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
             where: { userId },
             take: limit,
             skip: offset,
+            orderBy: {
+                createdAt: 'desc'
+            }
         });
 
         const total = await prisma.routine.count({
@@ -28,12 +31,9 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
             routines,
-            pagination: {
-                total,
-                limit,
-                offset,
-                hasMore: offset + limit < total
-            }
+            total,
+            limit,
+            offset
         });
     } catch (error) {
         console.error('Error fetching routines:', error);
@@ -51,16 +51,18 @@ export async function POST(request: NextRequest) {
         const {
             userId,
             name,
-            description,
+            startLocation,
             startCoordinates,
+            endLocation,
             endCoordinates,
-            scheduleType,
-            isActive
+            startTime,
+            repeatDays
         } = body;
 
-        if (!userId || !name || !startCoordinates || !endCoordinates || !scheduleType) {
+        if (!userId || !name || !startLocation || !startCoordinates ||
+            !endLocation || !endCoordinates || !startTime || !repeatDays) {
             return NextResponse.json(
-                { error: 'userId, name, startCoordinates, endCoordinates, and scheduleType are required' },
+                { error: 'All fields are required: userId, name, startLocation, startCoordinates, endLocation, endCoordinates, startTime, repeatDays' },
                 { status: 400 }
             );
         }
@@ -77,15 +79,35 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Validate repeatDays array
+        const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        if (!Array.isArray(repeatDays) || !repeatDays.every(day => validDays.includes(day.toLowerCase()))) {
+            return NextResponse.json(
+                { error: 'repeatDays must be an array of valid day names' },
+                { status: 400 }
+            );
+        }
+
+        // Validate startTime format (HH:MM)
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(startTime)) {
+            return NextResponse.json(
+                { error: 'startTime must be in HH:MM format' },
+                { status: 400 }
+            );
+        }
+
         const routine = await prisma.routine.create({
             data: {
-                id: crypto.randomUUID(),
                 userId,
+                name,
+                startLocation,
                 startCoordinates,
+                endLocation,
                 endCoordinates,
-                scheduleType,
-                isActive: isActive !== undefined ? isActive : true
-            },
+                startTime,
+                repeatDays
+            }
         });
 
         return NextResponse.json(routine, { status: 201 });

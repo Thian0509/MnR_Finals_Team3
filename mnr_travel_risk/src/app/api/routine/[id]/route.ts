@@ -10,7 +10,7 @@ export async function GET(
         const { id } = params;
 
         const routine = await prisma.routine.findUnique({
-            where: { id },
+            where: { id }
         });
 
         if (!routine) {
@@ -40,11 +40,12 @@ export async function PUT(
         const body = await request.json();
         const {
             name,
-            description,
+            startLocation,
             startCoordinates,
+            endLocation,
             endCoordinates,
-            scheduleType,
-            isActive
+            startTime,
+            repeatDays
         } = body;
 
         // Check if routine exists
@@ -60,28 +61,39 @@ export async function PUT(
         }
 
         const updateData: any = {};
-        if (name) {
-            updateData.name = name;
+        if (name) updateData.name = name;
+        if (startLocation) updateData.startLocation = startLocation;
+        if (startCoordinates) updateData.startCoordinates = startCoordinates;
+        if (endLocation) updateData.endLocation = endLocation;
+        if (endCoordinates) updateData.endCoordinates = endCoordinates;
+
+        if (startTime) {
+            // Validate startTime format (HH:MM)
+            const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!timeRegex.test(startTime)) {
+                return NextResponse.json(
+                    { error: 'startTime must be in HH:MM format' },
+                    { status: 400 }
+                );
+            }
+            updateData.startTime = startTime;
         }
-        if (description !== undefined) {
-            updateData.description = description;
-        }
-        if (startCoordinates) {
-            updateData.startCoordinates = startCoordinates;
-        }
-        if (endCoordinates) {
-            updateData.endCoordinates = endCoordinates;
-        }
-        if (scheduleType) {
-            updateData.scheduleType = scheduleType;
-        }
-        if (isActive !== undefined) {
-            updateData.isActive = isActive;
+
+        if (repeatDays) {
+            // Validate repeatDays array
+            const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            if (!Array.isArray(repeatDays) || !repeatDays.every(day => validDays.includes(day.toLowerCase()))) {
+                return NextResponse.json(
+                    { error: 'repeatDays must be an array of valid day names' },
+                    { status: 400 }
+                );
+            }
+            updateData.repeatDays = repeatDays;
         }
 
         const routine = await prisma.routine.update({
             where: { id },
-            data: updateData,
+            data: updateData
         });
 
         return NextResponse.json(routine);
@@ -114,7 +126,7 @@ export async function DELETE(
             );
         }
 
-        // Delete the routine (cascade will handle routine alerts)
+        // Delete the routine
         await prisma.routine.delete({
             where: { id }
         });
