@@ -21,18 +21,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { coordinates, riskLevel, riskDescription } = body;
+    const { coordinates, risklevel, riskDescription } = body;
 
-    if (!coordinates || riskLevel === undefined) {
+    if (!coordinates || risklevel === undefined) {
       return NextResponse.json(
-        { error: 'coordinates and riskLevel are required' },
+        { error: 'coordinates and risklevel are required' },
         { status: 400 }
       );
     }
 
-    if (riskLevel < 1 || riskLevel > 5) {
+    if (risklevel < 1 || risklevel > 5) {
       return NextResponse.json(
-        { error: 'riskLevel must be between 1 and 5' },
+        { error: 'risklevel must be between 1 and 5' },
         { status: 400 }
       );
     }
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: crypto.randomUUID(),
         coordinates,
-        riskLevel,
+        risklevel,
         riskDescription: riskDescription || null
       }
     });

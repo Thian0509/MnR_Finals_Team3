@@ -22,7 +22,7 @@ interface Report {
         lat: number
         lng: number
     }
-    riskLevel: number
+    risklevel: number
     riskDescription?: string
     createdAt: string
 }
@@ -32,7 +32,7 @@ export function RecentReportsDrawer() {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const riskLevels = [
+    const risklevels = [
         { value: 1, label: "Low", color: "bg-green-500" },
         { value: 2, label: "Moderate", color: "bg-yellow-500" },
         { value: 3, label: "High", color: "bg-orange-500" },
@@ -59,8 +59,8 @@ export function RecentReportsDrawer() {
         fetchReports()
     }, [])
 
-    const getRiskBadge = (riskLevel: number) => {
-        const risk = riskLevels.find(r => r.value === riskLevel) || riskLevels[0]
+    const getRiskBadge = (risklevel: number) => {
+        const risk = risklevels.find(r => r.value === risklevel) || risklevels[0]
         return (
             <Badge className={`text-white ${risk.color}`}>
                 {risk.label}
@@ -126,7 +126,7 @@ export function RecentReportsDrawer() {
                         <CardContent className="p-0 space-y-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-2">
-                                    {getRiskBadge(report.riskLevel)}
+                                    {getRiskBadge(report.risklevel)}
                                     <span className="text-xs text-gray-500">
                                         {formatTime(report.createdAt)}
                                     </span>

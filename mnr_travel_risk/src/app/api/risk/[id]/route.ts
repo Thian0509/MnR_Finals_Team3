@@ -38,7 +38,7 @@ export async function PUT(
   try {
     const { id } = params;
     const body = await request.json();
-    const { coordinates, riskLevel, riskDescription } = body;
+    const { coordinates, risklevel, riskDescription } = body;
 
     // Check if risk exists
     const existingRisk = await prisma.risk.findUnique({
@@ -56,14 +56,14 @@ export async function PUT(
     if (coordinates) {
       updateData.coordinates = coordinates;
     }
-    if (riskLevel !== undefined) {
-      if (riskLevel < 1 || riskLevel > 5) {
+    if (risklevel !== undefined) {
+      if (risklevel < 1 || risklevel > 5) {
         return NextResponse.json(
-          { error: 'riskLevel must be between 1 and 5' },
+          { error: 'risklevel must be between 1 and 5' },
           { status: 400 }
         );
       }
-      updateData.riskLevel = riskLevel;
+      updateData.risklevel = risklevel;
     }
     if (riskDescription !== undefined) {
       updateData.riskDescription = riskDescription;

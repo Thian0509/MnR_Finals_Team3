@@ -3,7 +3,6 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import mapStyles from '@/lib/mapStyles.json';
-import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
 import useLocation from '@/hooks/useLocation';
 import { LatLng, RiskMarker } from '@/types/coord';
 import { useRisks } from '@/hooks/useRisks';
@@ -47,9 +46,7 @@ const MapComponent: React.FC<{
 
       for (const pos of positions) {
         try {
-          const weather = await getWeatherAtLocation(pos.lat, pos.lng);
-          const riskValue = await getRiskFromWeather(weather);
-          results.push({ position: pos, risk: riskValue });
+          results.push({ position: pos, risk: pos.weight });
         } catch (error) {
           console.error('Failed to fetch risk for', pos, error);
           results.push({ position: pos, risk: 0 });

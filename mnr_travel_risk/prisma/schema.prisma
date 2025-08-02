@@ -109,10 +109,9 @@ model Trip {
 model Risk {
   id              String   @id
   coordinates     Json
-  riskLevel       Int
+  risklevel       Int
   riskDescription String?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 
   @@map("risk")
 }

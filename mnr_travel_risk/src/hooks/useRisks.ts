@@ -5,7 +5,7 @@ import { LatLng, RiskMarker } from '@/types/coord';
 interface Risk {
   id: string;
   coordinates: { lat: number; lng: number };
-  riskLevel: number;
+  risklevel: number;
   riskDescription?: string;
   createdAt: string;
   updatedAt: string;
@@ -29,13 +29,15 @@ export const useRisks = () => {
 
       const data: Risk[] = await response.json();
 
+      console.log(data);
+
       const transformedRisks: RiskMarker[] = data.map(risk => ({
         position: {
           lat: risk.coordinates.lat,
           lng: risk.coordinates.lng,
-          weight: risk.riskLevel
+          weight: risk.risklevel
         },
-        risk: risk.riskLevel
+        risk: risk.risklevel
       }));
 
       setRisks(transformedRisks);
