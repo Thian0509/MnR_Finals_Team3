@@ -27,6 +27,7 @@ model User {
   profile       UserProfile?
   trips         Trip[]
   alerts        Alert[] // This relation remains
+  Routine       Routine[]
 
   @@unique([email])
   @@map("user")
@@ -92,7 +93,6 @@ model Trip {
   id            String   @id @default(uuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
   // Simplified fields
   from          String
   to            String
@@ -156,4 +156,21 @@ enum RiskType {
   ROADWORK
   POLICE
   CLOSED_ROAD
+}
+
+model Routine {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  startLocation    String
+  startCoordinates Json
+  endLocation      String
+  endCoordinates   Json
+  startTime        String
+  repeatDays       String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("routine")
 }
