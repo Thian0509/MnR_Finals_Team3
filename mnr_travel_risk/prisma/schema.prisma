@@ -26,6 +26,7 @@ model User {
   accounts      Account[]
   profile       UserProfile?
   trips         Trip[]
+  alerts        Alert[] // This relation remains
   Routine       Routine[]
 
   @@unique([email])
@@ -89,22 +90,20 @@ model UserProfile {
 }
 
 model Trip {
-  id        String   @id
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Simplified fields
+  from          String
+  to            String
+  departureTime DateTime
+  notified      Boolean  @default(false) // To track if a notification has been sent
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  startCoordinates Json
-  endCoordinates   Json
-
-  travelTime     Int
-  travelDistance Int
-  travelMode     String
-  travelType     String
-
-  routineAlerts RoutineAlert[]
-
+  @@index([notified, departureTime]) // Index for efficient cron job queries
   @@map("trip")
 }
 
@@ -122,7 +121,7 @@ model Risk {
 model RiskReport {
   id              String   @id
   coordinates     Json
-  riskLevel       Int
+  riskType        RiskType
   riskDescription String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -130,33 +129,49 @@ model RiskReport {
   @@map("risk_report")
 }
 
-// ...existing code...
+// REMOVED: The RoutineAlert model is no longer needed.
 
-model RoutineAlert {
-  id          String   @id
-  tripId      String
-  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  arrivalTime DateTime
-  cronString  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Alert {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("routine_alert")
+  @@map("alert")
+}
+
+enum RiskType {
+  SNOW
+  HAIL
+  RAIN
+  FOG
+  ICE
+  WIND
+  SANDY
+  BAD_GRAVEL
+  MUD
+  ROCK
+  DEBRIS
+  POTHOLE
+  ROADWORK
+  POLICE
+  CLOSED_ROAD
 }
 
 model Routine {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name            String
-  startLocation   String
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  startLocation    String
   startCoordinates Json
-  endLocation     String
-  endCoordinates  Json
-  startTime       String   // Format: "HH:MM"
-  repeatDays      String[] // Array of days: ["monday", "tuesday", etc.]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  endLocation      String
+  endCoordinates   Json
+  startTime        String
+  repeatDays       String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("routine")
 }
