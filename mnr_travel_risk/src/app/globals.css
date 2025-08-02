@@ -120,3 +120,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+.pac-container {
+  z-index: 2147483647 !important; /* max z-index */
+  pointer-events: auto !important;
+}

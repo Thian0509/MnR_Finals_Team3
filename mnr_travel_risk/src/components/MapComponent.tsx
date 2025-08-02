@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useCallback, useState, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
-import { Badge } from '@/components/ui/badge';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import mapStyles from '@/lib/mapStyles.json';
 import { getRiskFromWeather, getWeatherAtLocation } from '@/actions/actions';
+import { Button } from '@/components/ui/button';
+import { RefreshCcw } from 'lucide-react';
+import useLocation from '@/hooks/useLocation';
 
 const containerStyle = {
   width: '100%',
@@ -14,6 +16,7 @@ const containerStyle = {
 interface LatLng {
   lat: number;
   lng: number;
+  weight: number;
 }
 
 interface RiskMarker {
@@ -21,7 +24,6 @@ interface RiskMarker {
   risk: number;
 }
 
-// Generate `count` random positions within `radiusKm` of `center`
 const generateRandomPositions = (
   count: number,
   center: LatLng,
@@ -52,18 +54,32 @@ const generateRandomPositions = (
     positions.push({
       lat: (lat2 * 180) / Math.PI,
       lng: (lon2 * 180) / Math.PI,
+      weight: Math.random() * 100
     });
   }
   return positions;
 };
 
-const MapComponent: React.FC = () => {
+const MapComponent: React.FC<{
+  isLoaded: boolean;
+  map: google.maps.Map | null;
+  setMap: (map: google.maps.Map | null) => void;
+  directionsRendered?: boolean;
+}> = ({ isLoaded, map, setMap, directionsRendered }) => {
   const [isClient, setIsClient] = useState(false);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358 });
+  const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
+  const { location, isLoading } = useLocation();
 
-  // Markers fetch function
+  useEffect(() => {
+    if (location && !isLoading) {
+      setCenter({ lat: location.coords.latitude, lng: location.coords.longitude, weight: 0 });
+    }
+  }, [location, isLoading]);
+  
+  const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
+  const trafficLayerRef = useRef<google.maps.TrafficLayer | null>(null);
+  
   const loadMarkers = useCallback(
     async (ctr: LatLng) => {
       const positions = [ctr, ...generateRandomPositions(15, ctr, 40)];
@@ -89,97 +105,97 @@ const MapComponent: React.FC = () => {
     setIsClient(true);
   }, []);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_MAPS_API_KEY as string,
-    libraries: ['marker'],
-  });
-
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
+    mapInstance.setOptions({
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      zoomControl: false,
+    });
     setMap(mapInstance);
-    // Initial marker load
     loadMarkers(center);
+    const trafficLayer = new google.maps.TrafficLayer();
+    trafficLayer.setMap(mapInstance);
+    trafficLayerRef.current = trafficLayer;
   }, [loadMarkers, center]);
 
   const onUnmount = useCallback(() => {
     setMap(null);
   }, []);
 
-  // Refresh handler
   const handleRefresh = () => {
     if (map) {
       const newCenter = map.getCenter()?.toJSON();
       if (newCenter) {
-        setCenter(newCenter);
-        loadMarkers(newCenter);
+        setCenter({ ...newCenter, weight: 0 });
+        loadMarkers({ ...newCenter, weight: 0 });
       }
     }
   };
 
-  // Render markers when they change
   useEffect(() => {
-    if (!map || !window.google?.maps?.marker) return;
+    if (!map || !window.google?.maps?.visualization || markers.length === 0) return;
 
-    const markerElements: google.maps.marker.AdvancedMarkerElement[] = [];
+    if (heatmapLayerRef.current) {
+      heatmapLayerRef.current.setMap(null);
+    }
 
-    markers.forEach(({ position, risk }) => {
-      const container = document.createElement('div');
-      const root = createRoot(container);
-      if (risk <= 88.5){
-        root.render(<Badge className="bg-emerald-900  " variant="destructive">{risk.toPrecision(4)}</Badge>);
-      } else if (risk <= 90) {
-        root.render(<Badge className="bg-amber-400" variant="destructive">{risk.toPrecision(4)}</Badge>);
-      } else {
-        root.render(<Badge className="bg-orange-800" variant="destructive">{risk.toPrecision(4)}</Badge>);
-      }
+    const heatmapData = markers.map(({ position, risk }) => ({
+      location: new google.maps.LatLng(position.lat, position.lng),
+      weight: risk
+    }));
 
-      const marker = new window.google.maps.marker.AdvancedMarkerElement({
-        map,
-        position,
-        content: container,
-      });
-      markerElements.push(marker);
+    const heatmapLayer = new google.maps.visualization.HeatmapLayer({
+      data: heatmapData,
+      map: map,
+      radius: 20,
+      opacity: 0.6,
+      gradient: [
+        'rgba(0, 255, 0, 0)',
+        'rgba(0, 255, 0, 1)',
+        'rgba(128, 255, 0, 1)',
+        'rgba(255, 255, 0, 1)',
+        'rgba(255, 191, 0, 1)',
+        'rgba(255, 127, 0, 1)',
+        'rgba(255, 63, 0, 1)',
+        'rgba(255, 0, 0, 1)'
+      ]
     });
 
-    return () => markerElements.forEach(m => (m.map = null));
+    heatmapLayerRef.current = heatmapLayer;
+
+    return () => {
+      if (heatmapLayerRef.current) {
+        heatmapLayerRef.current.setMap(null);
+        heatmapLayerRef.current = null;
+      }
+    };
   }, [map, markers]);
+
+  useEffect(() => {
+    if (directionsRendered && map) {
+      map.setZoom(map.getZoom() || 10);
+    }
+  }, [directionsRendered, map]);
 
   if (!isClient || !isLoaded) {
     return (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#f5f5f5',
-          color: '#666',
-        }}
-      >
+      <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
         Loading Map...
       </div>
     );
   }
 
-  return (
+  return isLoaded ? (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <button
+      <Button
         onClick={handleRefresh}
-        style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          zIndex: 5,
-          padding: '8px 12px',
-          background: '#fff',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-          cursor: 'pointer',
-        }}
+        variant="outline"
+        className="absolute top-4 left-4 z-10"
       >
+        <RefreshCcw className="h-4 w-4" />
         Refresh Risks
-      </button>
+      </Button>
 
       <GoogleMap
         mapContainerStyle={containerStyle}
@@ -187,8 +203,14 @@ const MapComponent: React.FC = () => {
         zoom={10}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{ mapId: 'DEMO_MAP_ID' }}
-      />
+        options={{ mapId: 'DEMO_MAP_ID', styles: mapStyles }}
+      >
+        {location && <Marker position={{ lat: location.coords.latitude, lng: location.coords.longitude }} />}
+      </GoogleMap>
+    </div>
+  ) : (
+    <div className="w-full h-full flex justify-center items-center bg-gray-50 text-gray-600">
+      Loading Map...
     </div>
   );
 };
