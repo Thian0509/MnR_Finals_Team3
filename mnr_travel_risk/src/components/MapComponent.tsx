@@ -19,7 +19,8 @@ const MapComponent: React.FC<{
   setMap: (map: google.maps.Map | null) => void;
   directionsRendered?: boolean;
   handleRefresh?: () => void;
-}> = ({ isLoaded, map, setMap, directionsRendered, handleRefresh }) => {
+  heatmapLayer?: google.maps.visualization.HeatmapLayer | null;
+}> = ({ isLoaded, map, setMap, directionsRendered, handleRefresh, heatmapLayer }) => {
   const [isClient, setIsClient] = useState(false);
   const [center, setCenter] = useState<LatLng>({ lat: -25.853952, lng: 28.19358, weight: 0 });
   const [markers, setMarkers] = useState<RiskMarker[]>([]);
@@ -93,29 +94,10 @@ const MapComponent: React.FC<{
       heatmapLayerRef.current.setMap(null);
     }
 
-    const heatmapData = markers.map(({ position, risk }) => ({
-      location: new google.maps.LatLng(position.lat, position.lng),
-      weight: risk
-    }));
-
-    const heatmapLayer = new google.maps.visualization.HeatmapLayer({
-      data: heatmapData,
-      map: map,
-      radius: 20,
-      opacity: 0.6,
-      gradient: [
-        'rgba(0, 255, 0, 0)',
-        'rgba(0, 255, 0, 1)',
-        'rgba(128, 255, 0, 1)',
-        'rgba(255, 255, 0, 1)',
-        'rgba(255, 191, 0, 1)',
-        'rgba(255, 127, 0, 1)',
-        'rgba(255, 63, 0, 1)',
-        'rgba(255, 0, 0, 1)'
-      ]
-    });
-
-    heatmapLayerRef.current = heatmapLayer;
+    if (heatmapLayer) {
+      heatmapLayer.setMap(map);
+      heatmapLayerRef.current = heatmapLayer;
+    }
 
     return () => {
       if (heatmapLayerRef.current) {

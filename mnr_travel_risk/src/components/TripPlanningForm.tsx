@@ -18,8 +18,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MapPin } from "lucide-react";
 import { Coord } from "@/types/coord";
 import buffer from "@turf/buffer";
-import { lineString } from "@turf/helpers";
-import { generateRandomPositions } from "@/hooks/useRisks";
+import { lineString, point } from "@turf/helpers";
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import { useRisks } from "@/hooks/useRisks";
 
 
 interface TripPlanningFormProps {
@@ -29,6 +30,8 @@ interface TripPlanningFormProps {
 
   // google maps stuff
   map: google.maps.Map | null;
+  heatmapLayer: any | null;
+  setHeatmapLayer: (layer: any | null) => void;
   onDirectionsRendered?: () => void;
   fromLocation: string;
   toLocation: string;
@@ -39,6 +42,8 @@ interface TripPlanningFormProps {
   setFromCoordinates: (coordinates: { lat: number, lng: number }) => void;
   setToCoordinates: (coordinates: { lat: number, lng: number }) => void;
   setShowPlanning: (show: boolean) => void;
+  averageRisk: number;
+  setAverageRisk: (risk: number) => void;
 }
 
 const TripPlanningForm: React.FC<TripPlanningFormProps> = ({ 
@@ -46,6 +51,8 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   onOpenChange, 
   trigger,
   map,
+  heatmapLayer,
+  setHeatmapLayer,
   onDirectionsRendered,
   fromLocation,
   toLocation,
@@ -56,12 +63,15 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
   setFromCoordinates,
   setToCoordinates,
   setShowPlanning,
+  averageRisk,
+  setAverageRisk,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leaveNow, setLeaveNow] = useState(true);
   const { getDirections, renderDirections } = useDirectionsService();
-  
+  const { risks, loading } = useRisks();
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -97,18 +107,45 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
 
       const buffered = buffer(turfLine, 25, { units: "kilometers" });
       
-      const polygon = new google.maps.Polygon({
-        paths: buffered?.geometry.coordinates[0].map(([lng, lat]) => ({ lat, lng })) || [],
-        strokeColor: "#0000FF",
-        strokeWeight: 2,
+      // get the risk markers from the map and take the intersection of the buffered polygon and the risk markers
+      const riskMarkers = loading ? [] : risks.filter(r => {
+          const turfPoint = point([r.position.lng, r.position.lat]);
+          return booleanPointInPolygon(turfPoint, buffered as any);
+        });
+
+      setAverageRisk(Number((riskMarkers.reduce((acc, r) => acc + r.risk, 0) / riskMarkers.length).toFixed(2)));
+
+      if (heatmapLayer) {
+        heatmapLayer.setMap(null);
+      }
+
+      const riskPolygon = new google.maps.visualization.HeatmapLayer({
+        data: riskMarkers.map(r => ({
+          location: new google.maps.LatLng(r.position.lat, r.position.lng),
+          weight: r.risk
+        })),
+        map: map,
+        radius: 20,
+        opacity: 0.6,
+        gradient: [
+          'rgba(0, 255, 0, 0)',
+          'rgba(0, 255, 0, 1)',
+          'rgba(128, 255, 0, 1)',
+          'rgba(255, 255, 0, 1)',
+          'rgba(255, 191, 0, 1)',
+          'rgba(255, 127, 0, 1)',
+          'rgba(255, 63, 0, 1)',
+          'rgba(255, 0, 0, 1)'
+        ]
       });
-      polygon.setMap(map);
+      setHeatmapLayer(riskPolygon as any);
 
       onDirectionsRendered?.();
       
       onOpenChange(false);
       setShowPlanning(true);
     } catch (err) {
+      console.log(err);
       setError("Failed to plan trip. Please try again.");
     } finally {
       setIsLoading(false);

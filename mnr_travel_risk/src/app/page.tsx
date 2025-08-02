@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import MapComponent from "@/components/MapComponent";
 import TripPlanningForm from "@/components/TripPlanningForm";
 import { useGoogleMaps } from "@/hooks/useGoogleMaps";
@@ -24,6 +24,8 @@ import { ArrowRight, LogOut, MapPin, Sparkles, Sun, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { truncate } from "@/lib/trunc";
+import { useRisks } from "@/hooks/useRisks";
+
 
 function App() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -36,6 +38,39 @@ function App() {
   const [fromCoordinates, setFromCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
   const [toCoordinates, setToCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
   const [showPlanning, setShowPlanning] = useState(false);
+  const { risks } = useRisks();
+  const [heatmapLayer, setHeatmapLayer] = useState<any | null>(null);
+  const [averageRisk, setAverageRisk] = useState(0);
+
+  useEffect(() => {
+    if (!map) return;
+    if (!google.maps.visualization.HeatmapLayer) return;
+
+    const heatmapData = risks.map(({ position, risk }) => ({
+      location: new google.maps.LatLng(position.lat, position.lng),
+      weight: risk
+    }));
+
+    const heatmapLayer = new google.maps.visualization.HeatmapLayer({
+      data: heatmapData,
+      map: map,
+      radius: 20,
+      opacity: 0.6,
+      gradient: [
+        'rgba(0, 255, 0, 0)',
+        'rgba(0, 255, 0, 1)',
+        'rgba(128, 255, 0, 1)',
+        'rgba(255, 255, 0, 1)',
+        'rgba(255, 191, 0, 1)',
+        'rgba(255, 127, 0, 1)',
+        'rgba(255, 63, 0, 1)',
+        'rgba(255, 0, 0, 1)'
+      ]
+    });
+
+    setHeatmapLayer(heatmapLayer);
+    setAverageRisk(risks.reduce((acc, r) => acc + r.risk, 0) / risks.length);
+  }, [map, risks]);
   
   const handleDirectionsRendered = () => {
     setDirectionsRendered(true);
@@ -114,6 +149,7 @@ function App() {
           map={map}
           setMap={setMap}
           directionsRendered={directionsRendered}
+          heatmapLayer={heatmapLayer}
         />
       </div>
 
@@ -145,7 +181,7 @@ function App() {
                     <p className="text-xs">minutes</p>
                   </div>
                   <div className="flex items-center justify-end flex-col">
-                    <h1 className="text-3xl font-bold text-red-500">85%</h1>
+                    <h1 className="text-3xl font-bold text-red-500">{averageRisk.toFixed(1)}%</h1>
                     <p className="text-xs">Travel Risk</p>
                   </div>
                 </div>
@@ -157,6 +193,8 @@ function App() {
               isOpen={isDialogOpen}
               onOpenChange={setIsDialogOpen}
               map={map}
+              heatmapLayer={heatmapLayer}
+              setHeatmapLayer={setHeatmapLayer}
               onDirectionsRendered={handleDirectionsRendered}
               fromLocation={fromLocation}
               toLocation={toLocation}
@@ -167,6 +205,8 @@ function App() {
               setFromCoordinates={setFromCoordinates}
               setToCoordinates={setToCoordinates}
               setShowPlanning={setShowPlanning}
+              averageRisk={averageRisk}
+              setAverageRisk={setAverageRisk}
             />
 
             <WeatherReportForm currentLocation={location ? { lat: location.coords.latitude, lng: location.coords.longitude } : undefined} />
