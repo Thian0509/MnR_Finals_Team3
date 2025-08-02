@@ -24,7 +24,6 @@ export default function RootLayout({
 }>) {
   const router = useRouter();
   const { data: session, isPending } = useSession();
-
   return (
     <html lang="en">
       <body
