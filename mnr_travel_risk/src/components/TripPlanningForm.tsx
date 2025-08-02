@@ -133,7 +133,7 @@ const TripPlanningForm: React.FC<TripPlanningFormProps> = ({
 
       const totalRisk = riskMarkers.reduce((acc, r) => {
         if ('risk' in r) {
-          return acc + (r.risk * 100);
+          return acc + r.risk;
         }
         else {
           return acc + 75;
