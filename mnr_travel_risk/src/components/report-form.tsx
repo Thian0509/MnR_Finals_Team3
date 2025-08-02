@@ -104,7 +104,7 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" className={cn("bg-slate-300", className)}>
+                <Button variant="outline" className={cn("bg-slate-300 cursor-pointer", className)}>
                     Report Hazardous Weather
                 </Button>
             </DialogTrigger>
