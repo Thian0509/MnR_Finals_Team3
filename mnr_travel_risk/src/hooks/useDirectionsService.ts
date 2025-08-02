@@ -6,6 +6,7 @@ export const useDirectionsService = () => {
       destination: destination,
       travelMode: travelMode,
     });
+    console.log(response);
     return response;
   };
 

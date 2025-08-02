@@ -73,7 +73,6 @@ export function RecentReportsTable() {
     const formatLocation = (coordinates: { lat: number; lng: number }) => {
         return `${coordinates.lat.toFixed(4)}, ${coordinates.lng.toFixed(4)}`
     }
-
     const formatTime = (dateString: string) => {
         const date = new Date(dateString)
         const now = new Date()

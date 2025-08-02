@@ -1,12 +1,13 @@
 import React, { useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useGoogleMaps } from "@/hooks/useGoogleMaps";
+import { Coord } from "@/types/coord";
 
 interface PlaceAutocompleteProps {
   value: string;
   setValue: (value: string) => void;
-  coordinates: { lat: number, lng: number };
-  setCoordinates: (coordinates: { lat: number, lng: number }) => void;
+  coordinates: Coord;
+  setCoordinates: (coordinates: Coord) => void;
 }
 
 export default function PlaceAutocomplete({ value, setValue, coordinates }: PlaceAutocompleteProps) {

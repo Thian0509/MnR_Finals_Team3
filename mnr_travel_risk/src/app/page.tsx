@@ -19,12 +19,22 @@ import Loading from "@/components/Loading";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete"
 import { WeatherReportForm } from "@/components/report-form"
 import { RecentReportsTable } from "@/components/recent-reports-table"
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Coord } from "@/types/coord";
 
 function App() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [directionsRendered, setDirectionsRendered] = useState(false);
   const { isLoaded, loadError, map, setMap } = useGoogleMaps();
   const { location, error, isLoading, requestLocation, permissionStatus } = useLocation();
+
+  const [fromLocation, setFromLocation] = useState<string>("");
+  const [toLocation, setToLocation] = useState<string>("");
+  const [fromCoordinates, setFromCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
+  const [toCoordinates, setToCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const handleDirectionsRendered = () => {
     setDirectionsRendered(true);
@@ -33,24 +43,41 @@ function App() {
     
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
+    setReportError(null);
+    setReportLoading(true);
 
     const formData = new FormData(e.currentTarget);
     const travelDate = formData.get("date") as string;
     const travelTime = formData.get("time") as string;
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Handle successful trip planning
-    console.log("Trip planned successfully!");
+    // Validate form data
+    if (!fromCoordinates || !toCoordinates || !travelDate || !travelTime) {
+      setReportError("Please fill in all required fields.");
+      setReportLoading(false);
+      return;
+    }
 
-  } catch (err) {
-    setError("Failed to plan trip. Please try again.");
-  } finally {
-    setIsLoading(false);
+    try {
+      // Here you would typically make an API call to plan the trip
+      console.log("Planning trip:", {
+        from: fromLocation,
+        to: toLocation,
+        date: travelDate,
+        time: travelTime
+      });
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Handle successful trip planning
+      console.log("Trip planned successfully!");
+
+    } catch (err) {
+      setReportError("Failed to plan trip. Please try again.");
+    } finally {
+      setReportLoading(false);
+    }
   }
-}
 
   if (loadError) {
     return (
@@ -121,9 +148,6 @@ function App() {
         </DialogContent>
       </Dialog>
 
-
-  return (
-    <div className="relative h-screen bg-gray-50 overflow-hidden font-sans">
       <div className="w-screen h-screen absolute top-0 left-0 z-0">
         <MapComponent
           isLoaded={isLoaded}
@@ -136,75 +160,13 @@ function App() {
       <div className="absolute bottom-0 left-0 right-0 z-10 p-5">
         <div className="flex flex-col items-center gap-4">
           <div className="flex gap-3">
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="cursor-pointer bg-slate-300" variant="outline">
-                  Plan Your Trip
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => {
-                // Prevent closing when clicking on Google Places Autocomplete dropdown
-                const target = e.target as Element;
-                if (target.closest('.pac-container')) {
-                  e.preventDefault();
-                }
-              }}>
-                <DialogHeader>
-                  <DialogTitle>Plan Your Safe Trip</DialogTitle>
-                  <DialogDescription>
-                    Enter your travel details to get safety recommendations and risk assessment
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                  <div className="flex flex-col gap-6">
-                    <div className="grid grid-cols-1 gap-4">
-                      <div className="grid gap-3">
-                        <Label htmlFor="from">From</Label>
-                        <PlaceAutocomplete value={fromLocation} setValue={setFromLocation} />
-                      </div>
-                      <div className="grid gap-3">
-                        <Label htmlFor="to">To</Label>
-                        <PlaceAutocomplete value={toLocation} setValue={setToLocation} />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      <div className="grid gap-3">
-                        <Label htmlFor="date">Travel Date</Label>
-                        <Input
-                          id="date"
-                          name="date"
-                          type="date"
-                          required
-                        />
-                      </div>
-                      <div className="grid gap-3">
-                        <Label htmlFor="time">Travel Time</Label>
-                        <Input
-                          id="time"
-                          name="time"
-                          type="time"
-                          step="60"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {error && (
-                      <div className="text-sm text-red-500 text-center">
-                        {error}
-                      </div>
-                    )}
-
-                    <div className="flex flex-col gap-3">
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? "Planning Trip..." : "Plan Trip"}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <TripPlanningForm 
+              isOpen={isDialogOpen}
+              onOpenChange={setIsDialogOpen}
+              map={map}
+              setMap={setMap}
+              onDirectionsRendered={handleDirectionsRendered}
+            />
 
             <WeatherReportForm />
           </div>

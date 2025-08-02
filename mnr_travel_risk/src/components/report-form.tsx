@@ -17,17 +17,14 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { Coord } from "@/types/coord"
 
 interface WeatherReportFormProps {
     className?: string
-    currentLocation?: {
-        lat: number
-        lng: number
-    }
+    currentLocation?: Coord
 }
 
 export function WeatherReportForm({ className, currentLocation }: WeatherReportFormProps) {
@@ -54,8 +51,8 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
         const description = formData.get("description") as string
 
         // Use current location or allow manual coordinates
-        const lat = parseFloat(formData.get("latitude") as string) || currentLocation?.lat
-        const lng = parseFloat(formData.get("longitude") as string) || currentLocation?.lng
+        const lat = currentLocation?.lat;
+        const lng = currentLocation?.lng;
 
         if (!lat || !lng) {
             setError("Location is required. Please allow location access or enter coordinates manually.")
@@ -104,7 +101,7 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" className={cn("bg-slate-300 cursor-pointer", className)}>
+                <Button variant="outline">
                     Report Hazardous Weather
                 </Button>
             </DialogTrigger>
@@ -171,32 +168,6 @@ export function WeatherReportForm({ className, currentLocation }: WeatherReportF
                                                 </div>
                                             </div>
                                         ))}
-                                    </div>
-                                </div>
-
-                                {/* Location */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="latitude">Latitude</Label>
-                                        <Input
-                                            id="latitude"
-                                            name="latitude"
-                                            type="number"
-                                            step="any"
-                                            placeholder={currentLocation?.lat?.toString() || "Enter latitude"}
-                                            defaultValue={currentLocation?.lat?.toString() || ""}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="longitude">Longitude</Label>
-                                        <Input
-                                            id="longitude"
-                                            name="longitude"
-                                            type="number"
-                                            step="any"
-                                            placeholder={currentLocation?.lng?.toString() || "Enter longitude"}
-                                            defaultValue={currentLocation?.lng?.toString() || ""}
-                                        />
                                     </div>
                                 </div>
 
