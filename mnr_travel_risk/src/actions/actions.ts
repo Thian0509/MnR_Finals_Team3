@@ -3,7 +3,7 @@
 // Mock function - replace the real one during development
 export async function getWeatherAtLocation(lat: number, long: number): Promise<any> {
     // Add a small delay to simulate network request
-    await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Generate realistic weather data based on location
     const baseTemp = 15 + (lat + 90) / 180 * 30; // Temperature varies by latitude

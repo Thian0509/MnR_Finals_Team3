@@ -93,16 +93,16 @@ const MapComponent: React.FC = () => {
   }, []);
 
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
-    setMap(mapInstance);
-    // Initial marker load
-    loadMarkers(center);
-    map.setOptions({
+    mapInstance.setOptions({
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
       zoomControl: false,
       styles: mapStyles,
     });
+    setMap(mapInstance);
+    // Initial marker load
+    loadMarkers(center);
   }, [loadMarkers, center]);
 
   const onUnmount = useCallback(() => {
