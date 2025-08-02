@@ -177,10 +177,6 @@ function App() {
                     <Sun className="h-10 w-10 text-yellow-500" />
                   </div>
                   <div className="flex items-center justify-end flex-col">
-                    <h1 className="text-3xl font-bold text-green-500">25</h1>
-                    <p className="text-xs">minutes</p>
-                  </div>
-                  <div className="flex items-center justify-end flex-col">
                     <h1 className="text-3xl font-bold text-red-500">{averageRisk ? averageRisk.toFixed(1) : 0}%</h1>
                     <p className="text-xs">Travel Risk</p>
                   </div>
