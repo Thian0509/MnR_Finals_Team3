@@ -128,16 +128,16 @@ const MapComponent: React.FC<{
     setMap(null);
   }, []);
 
-  const handleRefresh = () => {
-    if (map) {
-      const newCenter = map.getCenter()?.toJSON();
-      if (newCenter) {
-        setCenter({ ...newCenter, weight: 0 });
-        loadMarkers({ ...newCenter, weight: 0 });
-        loadReports({ ...newCenter, weight: 0 });
-      }
-    }
-  };
+  // const handleRefresh = () => {
+  //   if (map) {
+  //     const newCenter = map.getCenter()?.toJSON();
+  //     if (newCenter) {
+  //       setCenter({ ...newCenter, weight: 0 });
+  //       loadMarkers({ ...newCenter, weight: 0 });
+  //       loadReports({ ...newCenter, weight: 0 });
+  //     }
+  //   }
+  // };
 
   useEffect(() => {
     if (!map || !window.google?.maps?.visualization || markers.length === 0) return;
