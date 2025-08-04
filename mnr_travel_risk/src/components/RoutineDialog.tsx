@@ -1,13 +1,16 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { AlarmClockCheck, Trash2 } from "lucide-react";
+import { AlarmClockCheck, MapPin, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { useSession } from "@/lib/auth-client";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
+import { Coord } from "@/types/coord";
+import { truncate } from "lodash";
 
 interface Routine {
     id: string;
@@ -36,6 +39,10 @@ export default function RoutineDialog() {
         repeatPattern: '',
         customDays: [] as string[]
     });
+    
+    // Add coordinate state for PlaceAutocomplete
+    const [startCoordinates, setStartCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
+    const [endCoordinates, setEndCoordinates] = useState<Coord>({ lat: 0, lng: 0 });
 
     // API Service Functions
     const fetchRoutines = async () => {
@@ -141,7 +148,8 @@ export default function RoutineDialog() {
         }));
     };
 
-    const handleCreateRoutine = async () => {
+    const handleCreateRoutine = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
         if (!formData.name || !formData.startLocation || !formData.endLocation || !formData.time || !formData.repeatPattern) {
             alert('Please fill in all required fields');
             return;
@@ -169,13 +177,13 @@ export default function RoutineDialog() {
             return;
         }
 
-        // For simplicity, using location names as coordinates. In a real app, you'd geocode these.
+        // Use actual coordinates from PlaceAutocomplete
         const routineData = {
             name: formData.name,
             startLocation: formData.startLocation,
-            startCoordinates: { address: formData.startLocation }, // Placeholder
+            startCoordinates: startCoordinates,
             endLocation: formData.endLocation,
-            endCoordinates: { address: formData.endLocation }, // Placeholder
+            endCoordinates: endCoordinates,
             startTime: formData.time,
             repeatDays
         };
@@ -191,6 +199,9 @@ export default function RoutineDialog() {
                 repeatPattern: '',
                 customDays: []
             });
+            // Reset coordinates
+            setStartCoordinates({ lat: 0, lng: 0 });
+            setEndCoordinates({ lat: 0, lng: 0 });
             setShowForm(false);
         } else {
             alert('Failed to create routine. Please try again.');
@@ -235,7 +246,7 @@ export default function RoutineDialog() {
                     Elevate your daily travel routines
                 </Button>
             </DialogTrigger>
-            <DialogContent className="w-[1080px]">
+            <DialogContent className="max-w-[95vw] w-auto min-w-5xl">
                 <DialogHeader>
                     <DialogTitle>
                         {showForm ? "Create a routine" : "Your Routines"}
@@ -247,18 +258,18 @@ export default function RoutineDialog() {
                         }
                     </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div className="space-y-4 w-full">
                     {!showForm ? (
                         <>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="text-left px-4 py-2 w-[150px]">Name</TableHead>
-                                        <TableHead className="text-left px-4 py-2 w-[200px]">From</TableHead>
-                                        <TableHead className="text-left px-4 py-2 w-[200px]">To</TableHead>
-                                        <TableHead className="text-left px-4 py-2 w-[100px]">Time</TableHead>
-                                        <TableHead className="text-left px-4 py-2 w-[200px]">Days</TableHead>
-                                        <TableHead className="text-left px-4 py-2 w-[80px]">Actions</TableHead>
+                                        <TableHead className="text-left px-4 py-2">Name</TableHead>
+                                        <TableHead className="text-left px-4 py-2">From</TableHead>
+                                        <TableHead className="text-left px-4 py-2">To</TableHead>
+                                        <TableHead className="text-left px-4 py-2">Time</TableHead>
+                                        <TableHead className="text-left px-4 py-2">Days</TableHead>
+                                        <TableHead className="text-left px-4 py-2">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -270,19 +281,19 @@ export default function RoutineDialog() {
                                         </TableRow>
                                     ) : routines.map((routine) => (
                                         <TableRow key={routine.id}>
-                                            <TableCell className="px-4 py-2 truncate max-w-[150px]" title={routine.name}>
+                                            <TableCell className="px-4 py-2 truncate" title={routine.name}>
                                                 {routine.name}
                                             </TableCell>
-                                            <TableCell className="px-4 py-2 truncate max-w-[200px]" title={routine.startLocation}>
-                                                {routine.startLocation}
+                                            <TableCell className="px-4 py-2 truncate" title={routine.startLocation}>
+                                                {truncate(routine.startLocation, { length: 20 })}
                                             </TableCell>
-                                            <TableCell className="px-4 py-2 truncate max-w-[200px]" title={routine.endLocation}>
-                                                {routine.endLocation}
+                                            <TableCell className="px-4 py-2 truncate" title={routine.endLocation}>
+                                                {truncate(routine.endLocation, { length: 20 })}
                                             </TableCell>
-                                            <TableCell className="px-4 py-2 w-[100px]">
+                                            <TableCell className="px-4 py-2">
                                                 {routine.startTime}
                                             </TableCell>
-                                            <TableCell className="px-4 py-2 w-[200px]">
+                                            <TableCell className="px-4 py-2">
                                                 <div className="flex flex-wrap gap-1">
                                                     {routine.repeatDays.map((day, index) => (
                                                         <span 
@@ -294,7 +305,7 @@ export default function RoutineDialog() {
                                                     ))}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="px-4 py-2 w-[80px]">
+                                            <TableCell className="px-4 py-2">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -335,7 +346,7 @@ export default function RoutineDialog() {
                             </div>
                         </>
                     ) : (
-                        <form className="space-y-4">
+                        <form className="space-y-4" onSubmit={handleCreateRoutine}>
                             <div className="space-y-2">
                                 <Label htmlFor="routine-name">Routine Name</Label>
                                 <Input 
@@ -350,22 +361,20 @@ export default function RoutineDialog() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="start-location">Start Location</Label>
-                                    <Input 
-                                        id="start-location" 
-                                        placeholder="Enter start location"
+                                    <PlaceAutocomplete 
                                         value={formData.startLocation}
-                                        onChange={(e) => setFormData(prev => ({...prev, startLocation: e.target.value}))}
-                                        required
+                                        setValue={(value) => setFormData(prev => ({...prev, startLocation: value}))}
+                                        coordinates={startCoordinates}
+                                        setCoordinates={setStartCoordinates}
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="end-location">End Location</Label>
-                                    <Input 
-                                        id="end-location" 
-                                        placeholder="Enter destination"
+                                    <PlaceAutocomplete 
                                         value={formData.endLocation}
-                                        onChange={(e) => setFormData(prev => ({...prev, endLocation: e.target.value}))}
-                                        required
+                                        setValue={(value) => setFormData(prev => ({...prev, endLocation: value}))}
+                                        coordinates={endCoordinates}
+                                        setCoordinates={setEndCoordinates}
                                     />
                                 </div>
                             </div>
@@ -437,8 +446,7 @@ export default function RoutineDialog() {
                                     Cancel
                                 </Button>
                                 <Button 
-                                    type="button" 
-                                    onClick={handleCreateRoutine}
+                                    type="submit" 
                                     disabled={loading}
                                 >
                                     {loading ? 'Creating...' : 'Create Routine'}

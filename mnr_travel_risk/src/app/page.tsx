@@ -121,8 +121,8 @@ function App() {
     const heatmapLayer = new google.maps.visualization.HeatmapLayer({
       data: heatmapData,
       map: map,
-      radius: 20,
-      opacity: 0.6,
+      radius: 25,
+      opacity: 0.5,
       gradient: [
         'rgba(0, 255, 0, 0)',
         'rgba(0, 255, 0, 1)',
@@ -240,8 +240,9 @@ function App() {
                     <ArrowRight className="h-4 w-4" />
                     <span>{truncate(toLocation, 20)}</span>
                   </div>
-                  <div className="flex items-center">
-                    <Sparkles className="h-4 w-4 mr-2 text-indigo-500" /> {aiDescription}
+                  <div className="flex items-start text-wrap max-w-lg break-words">
+                    <Sparkles className="h-4 w-4 mr-2 text-indigo-500 shrink-0" />
+                    <span className="text-sm">{aiDescription}</span>
                   </div>
                 </div>
                 <div className="flex gap-3 items-center">

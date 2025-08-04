@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
             messages: [
                 {
                     role: "user",
-                    content: `Describe in 3 sentences what the drive between ${fromLocation} and ${toLocation} is like when the weather is ${weather}.`
+                    content: `Describe in 1 sentence what the drive between ${fromLocation} and ${toLocation} is like when the weather is ${weather}. Don't use more than 20 words.`
                 }
             ],
             max_tokens: 150,

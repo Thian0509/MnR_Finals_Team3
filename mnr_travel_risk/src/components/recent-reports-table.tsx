@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Clock, MapPin, AlertTriangle } from "lucide-react"
+import { RiskReport } from "@/generated/prisma"
+import { Coord } from "@/types/coord"
 
 interface Report {
     id: string
@@ -28,27 +30,20 @@ interface Report {
 }
 
 export function RecentReportsDrawer() {
-    const [reports, setReports] = useState<Report[]>([])
+    const [reports, setReports] = useState<RiskReport[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-
-    const risklevels = [
-        { value: 1, label: "Low", color: "bg-green-500" },
-        { value: 2, label: "Moderate", color: "bg-yellow-500" },
-        { value: 3, label: "High", color: "bg-orange-500" },
-        { value: 4, label: "Severe", color: "bg-red-500" },
-        { value: 5, label: "Critical", color: "bg-red-700" }
-    ]
 
     useEffect(() => {
         async function fetchReports() {
             try {
-                const response = await fetch("/api/report?limit=5")
+                const response = await fetch("/api/report")
                 if (!response.ok) {
                     throw new Error("Failed to fetch reports")
                 }
                 const data = await response.json()
-                setReports(data.reports || [])
+                console.log("Fetched reports:", data)
+                setReports(data)
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to load reports")
             } finally {
@@ -59,23 +54,19 @@ export function RecentReportsDrawer() {
         fetchReports()
     }, [])
 
-    const getRiskBadge = (risklevel: number) => {
-        const risk = risklevels.find(r => r.value === risklevel) || risklevels[0]
-        return (
-            <Badge className={`text-white ${risk.color}`}>
-                {risk.label}
-            </Badge>
-        )
+    const formatLocation = (coordinates: any) => {
+        if (!coordinates || typeof coordinates !== 'object') return 'Unknown location'
+        
+        const coord = coordinates as Coord
+        if (typeof coord.lat === 'number' && typeof coord.lng === 'number') {
+            return `${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)}`
+        }
+        return 'Invalid coordinates'
     }
 
-    const formatLocation = (coordinates: { lat: number; lng: number }) => {
-        return `${coordinates.lat.toFixed(4)}, ${coordinates.lng.toFixed(4)}`
-    }
-
-    const formatTime = (dateString: string) => {
-        const date = new Date(dateString)
+    const formatTime = (dateString: Date) => {
         const now = new Date()
-        const diffMs = now.getTime() - date.getTime()
+        const diffMs = now.getTime() - new Date(dateString).getTime()
         const diffMins = Math.floor(diffMs / (1000 * 60))
         const diffHours = Math.floor(diffMins / 60)
         const diffDays = Math.floor(diffHours / 24)
@@ -123,21 +114,26 @@ export function RecentReportsDrawer() {
             <div className="grid grid-cols-4 gap-4 px-4">
                 {reports.map((report) => (
                     <Card key={report.id} className="p-4">
-                        <CardContent className="p-0 space-y-3">
-                            <div className="flex items-center justify-between">
+                        <CardContent className="p-0 space-y-3">                            
+                            <div className="space-y-2">
                                 <div className="flex items-center space-x-2">
-                                    {getRiskBadge(report.risklevel)}
-                                    <span className="text-xs text-gray-500">
-                                        {formatTime(report.createdAt)}
+                                    <AlertTriangle className="h-4 w-4 text-gray-400" />
+                                    <span className="text-sm font-mono">
+                                        {report.riskType}
                                     </span>
                                 </div>
-                            </div>
-                            
-                            <div className="space-y-2">
+
                                 <div className="flex items-center space-x-2">
                                     <MapPin className="h-4 w-4 text-gray-400" />
                                     <span className="text-sm font-mono">
                                         {formatLocation(report.coordinates)}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center space-x-2">
+                                    <Clock className="h-4 w-4 text-gray-400" />
+                                    <span className="text-xs text-gray-500">
+                                        {formatTime(report.createdAt)}
                                     </span>
                                 </div>
                                 
